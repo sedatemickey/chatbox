@@ -41,3 +41,4 @@ def login(
         )
     access_token = create_access_token({"username": username})
     return {"access_token": access_token, "token_type": "bearer"} 
+
