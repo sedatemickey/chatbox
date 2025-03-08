@@ -1,10 +1,22 @@
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from database import create_db_and_tables
 from routes import router
+from dotenv import load_dotenv
+import os
 
 app = FastAPI()
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_URL],  
+    allow_credentials=True,                   
+    allow_methods=["*"],                      
+    allow_headers=["*"],                      
+)
 
 @app.on_event("startup")
 async def startup_event():

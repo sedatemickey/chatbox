@@ -90,6 +90,45 @@
                 }
             }
         },
+        "/auth/refresh_token": {
+            "post": {
+                "tags": ["用户认证"],
+                "summary": "刷新JWT",
+                "operationId": "refreshToken",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SingleToken"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "刷新成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Token"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "刷新失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RefreshFailed"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/user/getProfile": {
             "get": {
                 "tags": ["个人信息"],
@@ -327,6 +366,15 @@
                     }
                 }
             },
+            "SingleToken": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+                    }
+                }
+            },
             "Unauthorized": {
                 "type": "object",
                 "properties": {
@@ -376,6 +424,19 @@
                     "message": {
                         "type": "string",
                         "example": "用户名已存在"
+                    }
+                }
+            },
+            "RefreshFailed": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "integer",
+                        "example": 422
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Token刷新失败"
                     }
                 }
             },
