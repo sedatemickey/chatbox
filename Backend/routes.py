@@ -17,6 +17,12 @@ class Token(BaseModel):
 class UserID(BaseModel):
     user_id: int
     
+class GroupID(BaseModel):
+    group_id: int
+    
+class GroupName(BaseModel):
+    groupname: str
+    
 
 router = APIRouter()
 
@@ -84,7 +90,35 @@ def remove_friend_from_user(user_id: UserID, session: SessionDepend, user: User 
     except HTTPException as e:
         raise e
 
-
-# @router.get("/user/groups/list")
-# def list_groups(session: SessionDepend, current_user: User = Depends(get_current_user)):
-#     return
+@router.get("/user/groups/list")
+def list_groups(session: SessionDepend, user: User = Depends(get_current_user)):
+    try:
+        groups = get_group_list(user, session)
+        return {"groups": groups}
+    except HTTPException as e:
+        raise e
+    
+@router.post("/user/groups/create")
+def create_group_for_user(group_name: GroupName, session: SessionDepend, user: User = Depends(get_current_user)):
+    try:
+        db_group = create_group(user, group_name.groupname, session)
+        return {"message": "Group created successfully", "group_id": db_group.id, "groupname": db_group.groupname}
+    except HTTPException as e:
+        raise e
+    
+@router.post("/user/groups/join")
+def join_group(group_id: GroupID, session: SessionDepend, user: User = Depends(get_current_user)):
+    try:
+        add_user_to_group(user, group_id.group_id, session)
+        return {"message": "User added to group successfully"}
+    except HTTPException as e:
+        raise e
+    
+@router.delete("/user/groups/delete")
+def leave_group(group_id: GroupID, session: SessionDepend, user: User = Depends(get_current_user)):
+    try:
+        remove_user_from_group(user, group_id.group_id, session)
+        return {"message": "User removed from group successfully"}
+    except HTTPException as e:
+        raise e
+    

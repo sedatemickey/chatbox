@@ -86,18 +86,100 @@ def remove_friend(user, friend_id, session: SessionDepend):
     except:
         raise exception
     
-def get_message_by_groupid(group_id):
-    pass
+# 未测试！！
+def get_message_by_groupid(user, group_id, session: SessionDepend):
+    db_messages = session.exec(
+        select(GroupMessage).where(GroupMessage.groupid == group_id)
+    ).all()
+    return [{"message": message.message, "sender": message.senderid, "type": "sent" if message.senderid == user.id  else "received"} for message in db_messages]
 
-def get_group_list(user):
-    pass
+def get_group_list(user, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="get_group_list failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        db_groups = session.exec(
+            select(GroupMember).where(GroupMember.userid == user.id)
+        ).all()
+        groups_id = [db.groupid for db in db_groups]
+        groups = []
+        for group_id in groups_id:
+            group = session.exec(
+                select(Group).where(Group.id == group_id)
+            ).first()
+            groups.append({"id": group.id, "groupname": group.groupname})
+        return groups
+    except:
+        raise exception
 
-def create_group(user, group_name):
-    pass
+def create_group(user, group_name, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="Group creation failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try: 
+        db_group = Group(groupname=group_name)
+        session.add(db_group)
+        session.commit()
+        session.refresh(db_group)
+        db_group_member = GroupMember(userid=user.id, groupid=db_group.id)
+        session.add(db_group_member)
+        session.commit()
+        session.refresh(db_group_member)
+        return db_group
+    except:
+        raise exception
 
-def add_user_to_group(user, group_id):
-    pass
+def add_user_to_group(user, group_id, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="User addition to group failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        group_exists = session.exec(
+            select(Group).where(Group.id == group_id)
+        ).first()
+        if group_exists is None:
+            exception.detail = "Group does not exist"
+            raise exception
+        db_group_member = session.exec(
+            select(GroupMember).where(
+                and_(GroupMember.userid == user.id, GroupMember.groupid == group_id)
+            )
+        ).first()
+        if db_group_member is not None:
+            exception.detail = "User is already a member of the group"
+            raise exception
+        db_group_member = GroupMember(userid=user.id, groupid=group_id)
+        session.add(db_group_member)
+        session.commit()
+        session.refresh(db_group_member)
+        return "User added to group successfully"
+    except:
+        raise exception
 
-def remove_user_from_group(user, group_id):
-    pass
+def remove_user_from_group(user, group_id, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="User removal from group failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        db_group_member = session.exec(
+            select(GroupMember).where(
+                and_(GroupMember.userid == user.id, GroupMember.groupid == group_id)
+            )
+        ).first()
+        if db_group_member is None:
+            exception.detail = "User is not a member of the group"
+            raise exception
+        session.delete(db_group_member)
+        session.commit()
+        return "User removed from group successfully"
+    except:
+        raise exception
 
