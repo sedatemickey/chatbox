@@ -30,4 +30,6 @@ coverage
 *.tsbuildinfo
 
 # shit code
-swagger_copy.json
+*.bak
+.env
+*.pyc

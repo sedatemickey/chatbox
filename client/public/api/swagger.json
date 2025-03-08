@@ -101,7 +101,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/profile"
+                                    "$ref": "#/components/schemas/Profile"
                                 }
                             }
                         }
@@ -429,7 +429,7 @@
                     }
                 }
             },
-            "profile": {
+            "Profile": {
                 "type": "object",
                 "properties": {
                     "id": {
