@@ -116,15 +116,8 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "刷新失败",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RefreshFailed"
-                                }
-                            }
-                        }
+                    "401": {
+                        "$ref": "#/components/responses/TokenExpired"
                     }
                 }
             }
@@ -356,13 +349,17 @@
             "Token": {
                 "type": "object",
                 "properties": {
-                    "token": {
+                    "access_token": {
                         "type": "string",
                         "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
                     },
+                    "token_type": {
+                        "type": "string",
+                        "example": "bearer"
+                    },
                     "expires": {
                         "type": "integer",
-                        "example": 3600
+                        "example": 30
                     }
                 }
             },
@@ -382,9 +379,18 @@
                         "type": "integer",
                         "example": 401
                     },
-                    "message": {
+                    "detail": {
                         "type": "string",
-                        "example": "登录信息已过期，请重新登录"
+                        "example": "Could not validate credentials"
+                    },
+                    "headers": {
+                        "type": "object",
+                        "properties": {
+                            "WWW-Authenticate": {
+                                "type": "string",
+                                "example": "Bearer"
+                            }
+                        }
                     }
                 }
             },
@@ -404,26 +410,18 @@
             "LoginFailed": {
                 "type": "object",
                 "properties": {
-                    "code": {
-                        "type": "integer",
-                        "example": 401
-                    },
                     "message": {
                         "type": "string",
-                        "example": "用户名或密码错误"
+                        "example": "Incorrect username or password"
                     }
                 }
             },
             "RegisterFailed": {
                 "type": "object",
                 "properties": {
-                    "code": {
-                        "type": "integer",
-                        "example": 422
-                    },
                     "message": {
                         "type": "string",
-                        "example": "用户名已存在"
+                        "example": "Username already registered"
                     }
                 }
             },

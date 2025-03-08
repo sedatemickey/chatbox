@@ -4,6 +4,7 @@ from database import SessionDepend, User
 from auth import verify_password, create_access_token, get_password_hash, get_current_user
 from sqlmodel import select
 from pydantic import BaseModel
+from auth import ACCESS_TOKEN_EXPIRE_MINUTES
 
 class UserPass(BaseModel):
     username: str
@@ -11,8 +12,10 @@ class UserPass(BaseModel):
     
 class Token(BaseModel):
     token: str
+    
 
 router = APIRouter()
+
 
 @router.post("/auth/register")
 def register(
@@ -23,14 +26,14 @@ def register(
         select(User).where(User.username == user_pass.username)
     ).first()
     if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=422, detail="Username already registered")
     hashed_password = get_password_hash(user_pass.password)
     new_user = User(username=user_pass.username, hashed_password=hashed_password)
     session.add(new_user)
     session.commit()
     session.refresh(new_user)
     access_token = create_access_token({"username": user_pass.username})
-    return {"access_token": access_token, "token_type": "bearer"} 
+    return {"access_token": access_token, "token_type": "bearer", "expires": ACCESS_TOKEN_EXPIRE_MINUTES} 
 
 @router.post("/auth/login")
 def login(
@@ -46,7 +49,7 @@ def login(
             detail="Incorrect username or password",
         )
     access_token = create_access_token({"username": user_pass.username})
-    return {"access_token": access_token, "token_type": "bearer"} 
+    return {"access_token": access_token, "token_type": "bearer", "expires": ACCESS_TOKEN_EXPIRE_MINUTES} 
 
 @router.post("/auth/refresh_token")
 def refresh_token(
@@ -57,9 +60,8 @@ def refresh_token(
         user = get_current_user(old_token.token, session)
     except HTTPException as e:
         return e
-    print("user::::",user)
     access_token = create_access_token({"username": user.username})
-    return {"access_token": access_token, "token_type": "bearer"} 
+    return {"access_token": access_token, "token_type": "bearer", "expires": ACCESS_TOKEN_EXPIRE_MINUTES} 
 
 # @router.get("/user/groups/list")
 # def list_groups(session: SessionDepend, current_user: User = Depends(get_current_user)):

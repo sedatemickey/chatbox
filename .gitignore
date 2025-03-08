@@ -33,3 +33,4 @@ coverage
 *.bak
 .env
 *.pyc
+*.db
