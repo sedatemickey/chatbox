@@ -15,12 +15,23 @@ class Group(SQLModel, table=True):
 class GroupMember(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     groupid: int = Field(index=True, unique=True)
-    userid: int = Field(index=True, unique=True)
+    userid: int = Field(index=True)
     
-class Message(SQLModel, table=True):
+class Friends(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    userid: int = Field(index=True)
+    friendid: int = Field(index=True)
+    
+class GroupMessage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     senderid: int = Field(index=True)
     groupid: int = Field(index=True)
+    content: str
+    
+class PrivateMessage(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    senderid: int = Field(index=True)
+    receiverid: int = Field(index=True)
     content: str
 
 
