@@ -1,4 +1,5 @@
 from sqlmodel import create_engine, SQLModel, Session, Field
+from datetime import datetime
 from typing import Annotated
 from fastapi import Depends
 
@@ -7,32 +8,38 @@ class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
     hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.now)
     
 class Group(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     groupname: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.now)
     
 class GroupMember(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     groupid: int = Field(index=True, unique=True)
     userid: int = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
     
 class Friends(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     userid: int = Field(index=True)
     friendid: int = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
     
 class GroupMessage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     senderid: int = Field(index=True)
     groupid: int = Field(index=True)
-    content: str
+    message: str
+    created_at: datetime = Field(default_factory=datetime.now)
     
 class PrivateMessage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     senderid: int = Field(index=True)
     receiverid: int = Field(index=True)
-    content: str
+    message: str
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
 sqlite_file_name = "database.db"

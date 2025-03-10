@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from database import create_db_and_tables
 from routes import router
+from message import wsrouter
 from dotenv import load_dotenv
 import os
 
@@ -23,7 +24,7 @@ async def startup_event():
     create_db_and_tables()
 
 app.include_router(router)
-    
+app.include_router(wsrouter)
 
 
 if __name__ == "__main__":

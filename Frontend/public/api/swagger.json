@@ -122,7 +122,7 @@
                 }
             }
         },
-        "/user/getProfile": {
+        "/user/profile": {
             "get": {
                 "tags": ["个人信息"],
                 "summary": "获取个人信息",

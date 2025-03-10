@@ -13,8 +13,27 @@ def get_message_by_userid(user_id, user, session: SessionDepend):
         )
     ).all()
     return [{"message": message.message, "type": "sent" if message.senderid == user.id  else "received"} for message in db_messages]
+# 未测试！！
+def save_private_message(user: User, friend_id: int, message: str, session: SessionDepend):
+    exception = HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Private message saving failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        if not friend_id in get_friends_list(user, session):
+            exception.detail = "Friend does not exist"
+            raise exception
+        db_message = PrivateMessage(senderid=user.id, receiverid=friend_id, message=message)
+        session.add(db_message)
+        session.commit()
+        session.refresh(db_message)
+        return db_message
+    except Exception as e:
+        print(e)
+        raise exception
 
-def get_friends_list(user, session: SessionDepend):
+def get_friends_list(user: User, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="get_friends_list failed",
@@ -33,7 +52,7 @@ def get_friends_list(user, session: SessionDepend):
     except:
         raise exception
 
-def add_friend(user, friend_id, session: SessionDepend):
+def add_friend(user: User, friend_id: int, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="Friend addition failed",
@@ -62,7 +81,7 @@ def add_friend(user, friend_id, session: SessionDepend):
     except:
         raise exception
 
-def remove_friend(user, friend_id, session: SessionDepend):
+def remove_friend(user: User, friend_id: int, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="Friend removal failed",
@@ -87,13 +106,31 @@ def remove_friend(user, friend_id, session: SessionDepend):
         raise exception
     
 # 未测试！！
-def get_message_by_groupid(user, group_id, session: SessionDepend):
+def get_message_by_groupid(user: User, group_id: int, session: SessionDepend):
     db_messages = session.exec(
         select(GroupMessage).where(GroupMessage.groupid == group_id)
     ).all()
     return [{"message": message.message, "sender": message.senderid, "type": "sent" if message.senderid == user.id  else "received"} for message in db_messages]
+# 未测试！！
+def save_group_message(user: User, group_id: int, message, session: SessionDepend):
+    exception = HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Group message saving failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        if not group_id in get_group_list(user, session):
+            exception.detail = "Group does not exist"
+            raise exception
+        db_message = GroupMessage(senderid=user.id, groupid=group_id, message=message)
+        session.add(db_message)
+        session.commit()
+        session.refresh(db_message)
+        return db_message
+    except:
+        raise exception
 
-def get_group_list(user, session: SessionDepend):
+def get_group_list(user: User, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="get_group_list failed",
@@ -114,7 +151,7 @@ def get_group_list(user, session: SessionDepend):
     except:
         raise exception
 
-def create_group(user, group_name, session: SessionDepend):
+def create_group(user: User, group_name: str, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="Group creation failed",
@@ -133,7 +170,7 @@ def create_group(user, group_name, session: SessionDepend):
     except:
         raise exception
 
-def add_user_to_group(user, group_id, session: SessionDepend):
+def add_user_to_group(user: User, group_id: int, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="User addition to group failed",
@@ -162,7 +199,7 @@ def add_user_to_group(user, group_id, session: SessionDepend):
     except:
         raise exception
 
-def remove_user_from_group(user, group_id, session: SessionDepend):
+def remove_user_from_group(user: User, group_id: int, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="User removal from group failed",
