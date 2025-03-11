@@ -32,7 +32,7 @@
 </template>
   
 <script>
-import { handleLogin } from '@/services/api/auth'
+import { handleLogin, checkToken } from '@/services/api/auth'
 export default {
     data() {
         return {
@@ -40,6 +40,11 @@ export default {
                 username: '',
                 password: ''
             }
+        }
+    },
+    created() {
+        if(checkToken()) {
+            this.$router.push('/chat')
         }
     },
     methods: {

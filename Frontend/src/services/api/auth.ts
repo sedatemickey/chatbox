@@ -1,5 +1,6 @@
-import axios, { AxiosError, type AxiosResponse } from 'axios'
+import { AxiosError } from 'axios'
 import { message } from '@/utils/message'
+import API from '@/services/api/api'
 
 interface LoginResponse {
     access_token: string
@@ -11,13 +12,6 @@ interface ErrorResponse {
     detail: string
 }
 
-export const authAPI = axios.create({
-    baseURL: 'http://127.0.0.1:5100/auth',
-    timeout: 5000,
-    headers: {
-        'Content-Type': 'application/json'
-    }
-})
 
 class TokenManager {
     private static instance: TokenManager
@@ -40,7 +34,7 @@ class TokenManager {
         const expiresAt = localStorage.getItem('expires_at')
 
         if (token && tokenType && expiresAt) {
-            authAPI.defaults.headers.common['Authorization'] = `${tokenType} ${token}`
+            API.setAuthorization(tokenType, token)
             this.scheduleRefresh(parseInt(expiresAt))
         }
     }
@@ -53,7 +47,7 @@ class TokenManager {
         localStorage.setItem('token_type', token_type)
         localStorage.setItem('expires_at', expiresAt.toString())
 
-        authAPI.defaults.headers.common['Authorization'] = `${token_type} ${access_token}`
+        API.setAuthorization(token_type, access_token)
         this.scheduleRefresh(expiresAt)
     }
 
@@ -71,7 +65,7 @@ class TokenManager {
 
     public async refreshToken(): Promise<void> {
         try {
-            const response = await authAPI.post<LoginResponse>('/refresh_token')
+            const response = await API.getapi().post<LoginResponse>('/auth/refresh_token')
             this.setToken(response.data)
         } catch (error) {
             const axiosError = error as AxiosError<ErrorResponse>
@@ -86,7 +80,7 @@ class TokenManager {
         localStorage.removeItem('access_token')
         localStorage.removeItem('token_type')
         localStorage.removeItem('expires_at')
-        delete authAPI.defaults.headers.common['Authorization']
+        API.removeAuthorization()
         if (this.refreshTimeout) {
             clearTimeout(this.refreshTimeout)
         }
@@ -95,25 +89,9 @@ class TokenManager {
 
 export const tokenManager = TokenManager.getInstance()
 
-
-authAPI.interceptors.response.use(
-    (response: AxiosResponse) => response,
-    async (error: AxiosError<ErrorResponse>) => {
-        if (error.response?.status === 401) {
-            console.log('Authentication error:', error.response.data.detail)
-            tokenManager.clearToken()
-        }
-        if (error.response?.status === 422) {
-            console.log('Validation error:', error.response.data.detail)
-            tokenManager.clearToken()
-        }
-        return Promise.reject(error)
-    }
-)
-
 export const handleLogin = async (username: string, password: string): Promise<void> => {
     try {
-        const response = await authAPI.post<LoginResponse>('/login', {
+        const response = await API.getapi().post<LoginResponse>('/auth/login', {
             username,
             password
         })
@@ -132,7 +110,7 @@ export const handleLogin = async (username: string, password: string): Promise<v
 
 export const handleRegister = async (username: string, password: string): Promise<void> => {
     try {
-        const response = await authAPI.post<LoginResponse>('/register', {
+        const response = await API.getapi().post<LoginResponse>('/auth/register', {
             username,
             password
         })
@@ -146,5 +124,17 @@ export const handleRegister = async (username: string, password: string): Promis
             message.error(axiosError.response.data.detail)
         }
         throw error
+    }
+}
+
+export const checkToken = async (): Promise<boolean> => {
+    const expiresAt = localStorage.getItem('expires_at')
+    const timeNow = Date.now()
+    if (expiresAt && parseInt(expiresAt) > timeNow) {
+        return true
+    }
+    else {
+        tokenManager.clearToken()
+        return false
     }
 }
