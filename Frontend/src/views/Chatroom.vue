@@ -65,11 +65,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import ChatService from '@/services/api/chat'
-import { message } from '@/utils/message'
+import { showMessage } from '@/utils/message'
 import { checkToken } from '@/services/api/auth'
-import { ElStep } from 'element-plus';
+import WebSocketService from '@/services/websocket'
 
 interface ChatItem {
     id: string
@@ -89,7 +89,7 @@ const selectedChat = ref<ChatItem | null>(null)
 const messages = ref<Message[]>([])
 const newMessage = ref('')
 const showAddDialog = ref(false)
-let socket: WebSocket | null = null
+const ws = WebSocketService
 
 const getChatList = async () => {
     try{
@@ -123,38 +123,53 @@ const selectChat = (chat: ChatItem) => {
     selectedChat.value = chat
     messages.value = []
     
-    if (socket) {
-        socket.close()
-    }
+    ws.sendJSON({
+        type: 'change_chat',
+        friend_id: chat.type === 'friend' ? chat.id : 0,
+        group_id: chat.type === 'group' ? chat.id : 0
+    })
     
-    socket = new WebSocket(`ws://127.0.0.1:5100/chat/${chat.id}`)
-    
-    socket.onmessage = (event) => {
-        const data = JSON.parse(event.data)
-        messages.value.push({
-            content: data.content,
-            timestamp: Date.now(),
-            sender: data.sender === 'user' ? 'other' : 'me'
-        })
-    }
+    // socket.onmessage = (event) => {
+    //     const data = JSON.parse(event.data)
+    //     messages.value.push({
+    //         content: data.content,
+    //         timestamp: Date.now(),
+    //         sender: data.sender === 'user' ? 'other' : 'me'
+    //     })
+    // }
 }
 
 const sendMessage = () => {
-    if (newMessage.value.trim() && socket) {
-        const message = {
-            content: newMessage.value,
-            chatId: selectedChat.value?.id
+    try {
+        if (newMessage.value.trim()) {
+            const message = {
+                type: selectedChat.value?.type === 'friend' ? 'private_message' : 'group_message',
+                group_id: selectedChat.value?.type === 'group' ? selectedChat.value.id : 0,
+                friend_id: selectedChat.value?.type === 'friend' ? selectedChat.value.id : 0,
+                message: newMessage.value
+            }
+            ws.sendJSON(message)
+            messages.value.push({
+                content: newMessage.value,
+                timestamp: Date.now(),
+                sender: 'me'
+            })
+            newMessage.value = ''
         }
-        
-        socket.send(JSON.stringify(message))
-        messages.value.push({
-            content: newMessage.value,
-            timestamp: Date.now(),
-            sender: 'me'
-        })
-        newMessage.value = ''
+    }
+    catch (error) {
+        console.error(error)
+        showMessage.error('发送失败，请检查网络连接')
     }
 }
+
+watch(ws.wsMessage, (message) => {
+    messages.value.push({
+        content: message,
+        timestamp: Date.now(),
+        sender: 'other'
+    })
+})
 
 const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString([], { 
@@ -172,7 +187,7 @@ onMounted(() => {
 export default {
     created() {
         if(checkToken() === false) {
-            message.error('登录过期，请重新登录')
+            showMessage.error('登录过期，请重新登录')
             this.$router.push('/')
         }
     }

@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios'
-import { message } from '@/utils/message'
+import { showMessage } from '@/utils/message'
 import API from '@/services/api/api'
 
 interface LoginResponse {
@@ -96,13 +96,13 @@ export const handleLogin = async (username: string, password: string): Promise<v
             password
         })
         tokenManager.setToken(response.data)
-        message.success('登录成功')
+        showMessage.success('登录成功')
         window.location.href = '/chat'
     } catch (error) {
         const axiosError = error as AxiosError<ErrorResponse>
         if (axiosError.response?.status === 401) {
             console.log('Login failed:', axiosError.response.data.detail)
-            message.error(axiosError.response.data.detail)
+            showMessage.error(axiosError.response.data.detail)
         }
         throw error
     }
@@ -115,13 +115,13 @@ export const handleRegister = async (username: string, password: string): Promis
             password
         })
         tokenManager.setToken(response.data)
-        message.success('Registration successful')
+        showMessage.success('Registration successful')
         window.location.href = '/chat'
     } catch (error) {
         const axiosError = error as AxiosError<ErrorResponse>
         if (axiosError.response?.status === 422) {
             console.log('Registration failed:', axiosError.response.data.detail)
-            message.error(axiosError.response.data.detail)
+            showMessage.error(axiosError.response.data.detail)
         }
         throw error
     }

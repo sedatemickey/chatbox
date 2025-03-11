@@ -2,7 +2,7 @@ from database import User, Group, GroupMember, Friends, GroupMessage, PrivateMes
 from sqlmodel import select, exists, or_, and_
 from fastapi import HTTPException, status
 
-# 未测试！！
+
 def get_message_by_userid(user_id, user, session: SessionDepend):
     db_messages = session.exec(
         select(PrivateMessage).where(
@@ -13,7 +13,7 @@ def get_message_by_userid(user_id, user, session: SessionDepend):
         )
     ).all()
     return [{"message": message.message, "type": "sent" if message.senderid == user.id  else "received"} for message in db_messages]
-# 未测试！！
+
 def save_private_message(user: User, friend_id: int, message: str, session: SessionDepend):
     exception = HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -21,7 +21,8 @@ def save_private_message(user: User, friend_id: int, message: str, session: Sess
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        if not friend_id in get_friends_list(user, session):
+        friends_id = [friend["id"] for friend in get_friends_list(user, session)]
+        if not friend_id in friends_id:
             exception.detail = "Friend does not exist"
             raise exception
         db_message = PrivateMessage(senderid=user.id, receiverid=friend_id, message=message)
@@ -117,13 +118,13 @@ def remove_friend(user: User, friend_id: int, session: SessionDepend):
     except:
         raise exception
     
-# 未测试！！
+
 def get_message_by_groupid(user: User, group_id: int, session: SessionDepend):
     db_messages = session.exec(
         select(GroupMessage).where(GroupMessage.groupid == group_id)
     ).all()
     return [{"message": message.message, "sender": message.senderid, "type": "sent" if message.senderid == user.id  else "received"} for message in db_messages]
-# 未测试！！
+
 def save_group_message(user: User, group_id: int, message, session: SessionDepend):
     exception = HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -131,7 +132,8 @@ def save_group_message(user: User, group_id: int, message, session: SessionDepen
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        if not group_id in get_group_list(user, session):
+        groups_id = [group["id"] for group in get_group_list(user, session)]
+        if not group_id in groups_id:
             exception.detail = "Group does not exist"
             raise exception
         db_message = GroupMessage(senderid=user.id, groupid=group_id, message=message)
@@ -139,7 +141,8 @@ def save_group_message(user: User, group_id: int, message, session: SessionDepen
         session.commit()
         session.refresh(db_message)
         return db_message
-    except:
+    except Exception as e:
+        print(e)
         raise exception
 
 def get_group_list(user: User, session: SessionDepend):

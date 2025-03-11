@@ -7,12 +7,13 @@ interface ErrorResponse {
 class API {
     private static instance: API
     private readonly api = axios.create({
-        baseURL: 'http://127.0.0.1:5100',
+        baseURL: import.meta.env.VITE_API_URL,
         timeout: 5000,
         headers: {
             'Content-Type': 'application/json'
         }
     })
+    private token: string | null = null
 
     private constructor() {
         this.api.interceptors.response.use(
@@ -38,16 +39,22 @@ class API {
 
     public setAuthorization(tokenType: string, token: string): void {
         this.api.defaults.headers.common['Authorization'] = `${tokenType} ${token}`
+        this.token = token
         console.log('Authorization set:', tokenType, token)
     }
 
     public removeAuthorization(): void {
         delete this.api.defaults.headers.common['Authorization']
+        this.token = null
         console.log('Authorization removed')
     }
 
     public getapi(): AxiosInstance {
         return this.api
+    }
+
+    public getToken(): string | null {
+        return this.token
     }
 
 }

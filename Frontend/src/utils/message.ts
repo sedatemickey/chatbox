@@ -11,7 +11,7 @@ const initMessage = () => {
     return createApp(Message).mount(mountNode)
 }
 
-export const message = {
+export const showMessage = {
     success: (msg: string, duration?: number) => {
         if (!messageInstance) messageInstance = initMessage()
         messageInstance.show(msg, 'success', duration)
@@ -25,6 +25,6 @@ export const message = {
 // 保留插件安装方式
 export default {
     install(app: App) {
-        app.config.globalProperties.$message = message
+        app.config.globalProperties.$showMessage = showMessage
     }
 } as Plugin

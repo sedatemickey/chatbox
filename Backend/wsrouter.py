@@ -24,39 +24,45 @@ class ConnectionManager:
             user = get_current_user_by_token(data.get("token"), session)
             info = ConnectionInfo(user, data.get("group_id"), data.get("friend_id"))
             wsinfo = WsInfo(websocket, info)
-            if not any(websocket in active_ws for active_ws in self.active_connections):
+            if not any(wsinfo == active_ws for active_ws in self.active_connections):
                 await websocket.send_text("authenticated")
                 self.active_connections.append(wsinfo)
             else:
                 await websocket.send_text("already authenticated")
             return wsinfo
-        except:
+        except Exception as e:
+            print(e)
             return False
           
     def disconnect(self, wsinfo: WsInfo):
         if wsinfo in self.active_connections:
             self.active_connections.remove(wsinfo)
         
-    async def group_broadcast(self, group_id: int, message: str):
+    async def group_broadcast(self, group_id: int, message: str, user_id: int | None = None):
         for connection in self.active_connections:
-            if connection.info.group_id == group_id:
-                await connection.websocket.send_text(message)
+            if connection.info.group_id == group_id and connection.info.user.id != user_id:
+                await connection.websocket.send_text("getMessage: " + message)
             
     async def private_broadcast(self, user_id: int, friend_id: int, message: json):
         for connection in self.active_connections:
             if connection.info.friend_id == user_id and connection.info.user.id == friend_id:
-                await connection.websocket.send_text(message)
+                await connection.websocket.send_text("getMessage: " + message)
                 
     async def handle_message(self, session: SessionDepend, wsinfo: WsInfo, message: dict):
+        print("ws: ", message)
         try:
             if(message.get("type") == "group_message"):
                 save_group_message(wsinfo.info.user, message.get("group_id"), message.get("message"), session)
                 await wsinfo.websocket.send_text("group message sent")
-                await self.group_broadcast(message.get("group_id"), message.get("message"))
+                await self.group_broadcast(message.get("group_id"), message.get("message"), wsinfo.info.user.id)
             elif(message.get("type") == "private_message"):
                 save_private_message(wsinfo.info.user, message.get("friend_id"), message.get("message"), session)
                 await wsinfo.websocket.send_text("private message sent")
                 await self.private_broadcast(wsinfo.info.user.id, message.get("friend_id"), message.get("message"))
+            elif(message.get("type") == "change_chat"):
+                wsinfo.info.group_id = message.get("group_id")
+                wsinfo.info.friend_id = message.get("friend_id")
+                await wsinfo.websocket.send_text("chat changed")
             else:
                 await wsinfo.websocket.send_text("invalid message type")
                 await wsinfo.websocket.close(code=4003)
