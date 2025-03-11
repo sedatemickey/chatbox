@@ -103,10 +103,13 @@ authAPI.interceptors.response.use(
             console.log('Authentication error:', error.response.data.detail)
             tokenManager.clearToken()
         }
+        if (error.response?.status === 422) {
+            console.log('Validation error:', error.response.data.detail)
+            tokenManager.clearToken()
+        }
         return Promise.reject(error)
     }
 )
-
 
 export const handleLogin = async (username: string, password: string): Promise<void> => {
     try {
@@ -121,6 +124,25 @@ export const handleLogin = async (username: string, password: string): Promise<v
         const axiosError = error as AxiosError<ErrorResponse>
         if (axiosError.response?.status === 401) {
             console.log('Login failed:', axiosError.response.data.detail)
+            message.error(axiosError.response.data.detail)
+        }
+        throw error
+    }
+}
+
+export const handleRegister = async (username: string, password: string): Promise<void> => {
+    try {
+        const response = await authAPI.post<LoginResponse>('/register', {
+            username,
+            password
+        })
+        tokenManager.setToken(response.data)
+        message.success('Registration successful')
+        window.location.href = '/chat'
+    } catch (error) {
+        const axiosError = error as AxiosError<ErrorResponse>
+        if (axiosError.response?.status === 422) {
+            console.log('Registration failed:', axiosError.response.data.detail)
             message.error(axiosError.response.data.detail)
         }
         throw error
