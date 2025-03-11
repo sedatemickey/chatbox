@@ -96,7 +96,7 @@ export const handleLogin = async (username: string, password: string): Promise<v
             password
         })
         tokenManager.setToken(response.data)
-        message.success('Login successful')
+        message.success('登录成功')
         window.location.href = '/chat'
     } catch (error) {
         const axiosError = error as AxiosError<ErrorResponse>
@@ -127,7 +127,7 @@ export const handleRegister = async (username: string, password: string): Promis
     }
 }
 
-export const checkToken = async (): Promise<boolean> => {
+export const checkToken = (): boolean => {
     const expiresAt = localStorage.getItem('expires_at')
     const timeNow = Date.now()
     if (expiresAt && parseInt(expiresAt) > timeNow) {

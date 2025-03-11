@@ -31,7 +31,7 @@
     </div>
 </template>
   
-<script>
+<script lang="ts">
 import { handleLogin, checkToken } from '@/services/api/auth'
 export default {
     data() {
@@ -43,7 +43,7 @@ export default {
         }
     },
     created() {
-        if(checkToken()) {
+        if(checkToken() === true) {
             this.$router.push('/chat')
         }
     },

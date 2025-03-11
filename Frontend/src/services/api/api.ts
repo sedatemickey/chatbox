@@ -38,10 +38,12 @@ class API {
 
     public setAuthorization(tokenType: string, token: string): void {
         this.api.defaults.headers.common['Authorization'] = `${tokenType} ${token}`
+        console.log('Authorization set:', tokenType, token)
     }
 
     public removeAuthorization(): void {
         delete this.api.defaults.headers.common['Authorization']
+        console.log('Authorization removed')
     }
 
     public getapi(): AxiosInstance {

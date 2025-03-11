@@ -43,11 +43,23 @@ def get_friends_list(user: User, session: SessionDepend):
         db_friends = session.exec(
             select(Friends).where(Friends.userid == user.id)
         ).all()
-        friends = [db.friendid for db in db_friends]
+        friends_id = [db.friendid for db in db_friends]
         db_friends = session.exec(
             select(Friends).where(Friends.friendid == user.id)
         ).all()
-        friends.extend([db.userid for db in db_friends])
+        friends_id.extend([db.userid for db in db_friends])
+        
+        friends = []
+        for friend_id in friends_id:
+            friend_name = session.exec(
+                select(User).where(User.id == friend_id)
+            ).first().username
+            friend_message = get_message_by_userid(friend_id, user, session)
+            if len(friend_message) > 0:
+                friend_message = friend_message[-1]
+            else:
+                friend_message = {"message": "", "type": ""}
+            friends.append({"id": friend_id, "username": friend_name, "last_message": friend_message})
         return friends
     except:
         raise exception
@@ -146,9 +158,15 @@ def get_group_list(user: User, session: SessionDepend):
             group = session.exec(
                 select(Group).where(Group.id == group_id)
             ).first()
-            groups.append({"id": group.id, "groupname": group.groupname})
+            group_message = get_message_by_groupid(user, group_id, session)
+            if len(group_message) > 0:
+                group_message = group_message[-1]
+            else:
+                group_message = {"message": "", "sender": "", "type": ""}
+            groups.append({"id": group.id, "groupname": group.groupname, "last_message": group_message})
         return groups
-    except:
+    except Exception as e:
+        print(e)
         raise exception
 
 def create_group(user: User, group_name: str, session: SessionDepend):
