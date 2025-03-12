@@ -31,7 +31,7 @@
                 <ul class="contact-list">
                     <li v-for="item in chatList" 
                         :key="item.id" 
-                        :class="{ active: selectedChat?.id === item.id }"
+                        :class="{ active: selectedChat?.id === item.id && selectedChat?.type === item.type }"
                         @click="selectChat(item)">
                         <div class="avatar">{{ item.name.charAt(0) }}</div>
                         <div class="info">
@@ -141,7 +141,7 @@ const getChatList = async () => {
                 id: group.id,
                 name: group.groupname,
                 type: 'group',
-                lastMessage: group.last_message.message
+                lastMessage: group.last_message.message,
             })
         }
         friendList.value = (await ChatService.getFriendList()).data.friends
