@@ -164,11 +164,41 @@ const sendMessage = () => {
 }
 
 watch(ws.wsMessage, (message) => {
-    messages.value.push({
-        content: message,
-        timestamp: Date.now(),
-        sender: 'other'
-    })
+    if ("type" in message) {
+        if (message["type"] === "get_message" && "message" in message && typeof message["message"] === "string") {
+            messages.value.push({
+                content: message["message"],
+                timestamp: Date.now(),
+                sender: 'other'
+            })
+        }
+        else if (message.type === "group_messages" && "group_messages" in message && Array.isArray(message["group_messages"])) {
+            message["group_messages"].forEach((group_message: JSON) => {
+                if ("message" in group_message && typeof group_message["message"] === "string" && "type" in group_message && typeof group_message["type"] === "string") {
+                    messages.value.push({
+                        content: group_message["message"],
+                        timestamp: Date.now(),
+                        sender: group_message["type"] === 'received' ? 'other' : 'me'
+                    })
+                }
+            })
+        }
+        else if (message.type === "friends_messages" && "friends_messages" in message && Array.isArray(message["friends_messages"])) {
+            message["friends_messages"].forEach((friend_message: JSON) => {
+                if ("message" in friend_message && typeof friend_message["message"] === "string"
+                  && "type" in friend_message && typeof friend_message["type"] === "string"
+                  && "created_at" in friend_message && typeof friend_message["created_at"] === "number") {
+                    messages.value.push({
+                        content: friend_message["message"],
+                        timestamp: friend_message["created_at"],
+                        sender: friend_message["type"] === 'received' ? 'other' : 'me'
+                    })
+                }
+            })
+        }
+    }
+    
+    
 })
 
 const formatTime = (timestamp: number) => {

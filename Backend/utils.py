@@ -12,9 +12,10 @@ def get_message_by_userid(user_id, user, session: SessionDepend):
             )
         )
     ).all()
-    return [{"message": message.message, "type": "sent" if message.senderid == user.id  else "received"} for message in db_messages]
+    db_messages.sort(key=lambda x: x.created_at, reverse=False)
+    return [{"message": message.message, "type": "sent" if message.senderid == user.id  else "received", "created_at": message.created_at.timestamp() * 1000} for message in db_messages]
 
-def save_private_message(user: User, friend_id: int, message: str, session: SessionDepend):
+def save_private_message(user: User, friend_id: int, message: str, session: SessionDepend): 
     exception = HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Private message saving failed",
@@ -123,7 +124,8 @@ def get_message_by_groupid(user: User, group_id: int, session: SessionDepend):
     db_messages = session.exec(
         select(GroupMessage).where(GroupMessage.groupid == group_id)
     ).all()
-    return [{"message": message.message, "sender": message.senderid, "type": "sent" if message.senderid == user.id  else "received"} for message in db_messages]
+    db_messages.sort(key=lambda x: x.created_at, reverse=False)
+    return [{"message": message.message, "sender": message.senderid, "type": "sent" if message.senderid == user.id  else "received", "created_at": message.created_at.timestamp() * 1000} for message in db_messages]
 
 def save_group_message(user: User, group_id: int, message, session: SessionDepend):
     exception = HTTPException(

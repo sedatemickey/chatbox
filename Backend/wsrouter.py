@@ -2,7 +2,7 @@ from fastapi import WebSocket, APIRouter, WebSocketDisconnect, Depends, HTTPExce
 from auth import get_current_user_by_token
 from database import SessionDepend, User
 import json
-from utils import save_group_message, save_private_message
+from utils import save_group_message, save_private_message, get_message_by_groupid, get_message_by_userid
 
 class ConnectionInfo:
     def __init__(self, user: User, group_id: int = None, friend_id: int = None):
@@ -25,10 +25,12 @@ class ConnectionManager:
             info = ConnectionInfo(user, data.get("group_id"), data.get("friend_id"))
             wsinfo = WsInfo(websocket, info)
             if not any(wsinfo == active_ws for active_ws in self.active_connections):
-                await websocket.send_text("authenticated")
+                sendJson = {"type": "info", "message": "authenticated"}
+                await websocket.send_text(json.dumps(sendJson))
                 self.active_connections.append(wsinfo)
             else:
-                await websocket.send_text("already authenticated")
+                sendJson = {"type": "info", "message": "already authenticated"}
+                await websocket.send_text(json.dumps(sendJson))
             return wsinfo
         except Exception as e:
             print(e)
@@ -41,36 +43,47 @@ class ConnectionManager:
     async def group_broadcast(self, group_id: int, message: str, user_id: int | None = None):
         for connection in self.active_connections:
             if connection.info.group_id == group_id and connection.info.user.id != user_id:
-                await connection.websocket.send_text("getMessage: " + message)
+                sendJson = {"type": "get_message", "message": message}
+                await connection.websocket.send_text(json.dumps(sendJson))
             
     async def private_broadcast(self, user_id: int, friend_id: int, message: json):
         for connection in self.active_connections:
             if connection.info.friend_id == user_id and connection.info.user.id == friend_id:
-                await connection.websocket.send_text("getMessage: " + message)
+                sendJson = {"type": "get_message", "message": message}
+                await connection.websocket.send_text(json.dumps(sendJson))
                 
     async def handle_message(self, session: SessionDepend, wsinfo: WsInfo, message: dict):
         print("ws: ", message)
         try:
             if(message.get("type") == "group_message"):
                 save_group_message(wsinfo.info.user, message.get("group_id"), message.get("message"), session)
-                await wsinfo.websocket.send_text("group message sent")
+                sendJson = {"type": "info", "message": "group message sent"}
+                await wsinfo.websocket.send_text(json.dumps(sendJson))
                 await self.group_broadcast(message.get("group_id"), message.get("message"), wsinfo.info.user.id)
             elif(message.get("type") == "private_message"):
                 save_private_message(wsinfo.info.user, message.get("friend_id"), message.get("message"), session)
-                await wsinfo.websocket.send_text("private message sent")
+                sendJson = {"type": "info", "message": "private message sent"}
+                await wsinfo.websocket.send_text(json.dumps(sendJson))
                 await self.private_broadcast(wsinfo.info.user.id, message.get("friend_id"), message.get("message"))
             elif(message.get("type") == "change_chat"):
                 wsinfo.info.group_id = message.get("group_id")
                 wsinfo.info.friend_id = message.get("friend_id")
-                await wsinfo.websocket.send_text("chat changed")
+                # 发送历史消息
+                if wsinfo.info.group_id:
+                    sendJson = {"type": "group_messages", "group_messages": get_message_by_groupid(wsinfo.info.user, wsinfo.info.group_id, session), "message": "chat changed"}
+                elif wsinfo.info.friend_id:
+                    sendJson = {"type": "friends_messages", "friends_messages": get_message_by_userid(wsinfo.info.friend_id, wsinfo.info.user, session), "message": "chat changed"}
+                await wsinfo.websocket.send_text(json.dumps(sendJson))
             else:
-                await wsinfo.websocket.send_text("invalid message type")
+                sendJson = {"type": "info", "message": "invalid message type"}
+                await wsinfo.websocket.send_text(json.dumps(sendJson))
                 await wsinfo.websocket.close(code=4003)
                 raise WebSocketDisconnect
         except WebSocketDisconnect as e:
             raise e
         except HTTPException as e:
-            await wsinfo.websocket.send_text(str(e))
+            sendJson = {"type": "info", "message": str(e)}
+            await wsinfo.websocket.send_text(json.dumps(sendJson))
             await wsinfo.websocket.close(code=4003)
             raise WebSocketDisconnect
 
@@ -88,11 +101,13 @@ async def websocket_endpoint(websocket: WebSocket, session: SessionDepend):
             if data.get("type") == "auth_request":
                 wsinfo = await manager.authenticate(websocket, session, data)
                 if not wsinfo:
-                    await websocket.send_text("authentication failed")
+                    sendJson = {"type": "info", "message": "authentication failed"}
+                    await websocket.send_text(json.dumps(sendJson))
                     await websocket.close(code=4003)
                     break
             elif not wsinfo:
-                await websocket.send_text("not authenticated")
+                sendJson = {"type": "info", "message": "not authenticated"}
+                await websocket.send_text(json.dumps(sendJson))
                 await websocket.close(code=4003)
                 raise WebSocketDisconnect
             else:

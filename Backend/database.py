@@ -1,5 +1,5 @@
 from sqlmodel import create_engine, SQLModel, Session, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 from fastapi import Depends
 
