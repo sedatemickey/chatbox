@@ -54,7 +54,7 @@ export default {
 <style scoped>
 .login-container {
     min-height: 100vh;
-    background: url('/login-bg.jpg') no-repeat center center fixed;
+    background: url('/bg.jpg') no-repeat center center fixed;
     background-size: cover;
     display: flex;
     justify-content: center;

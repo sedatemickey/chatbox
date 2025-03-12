@@ -37,6 +37,28 @@ class ChatService {
         }
     }
 
+    public async getAllUsers(): Promise<AxiosResponse<any>> {
+        try {
+            const response = await API.getapi().get('/user/fulllist')
+            return response
+        }
+        catch (error) {
+            const { response } = error as AxiosError<ErrorResponse>
+            throw error
+        }
+    }
+
+    public async getAllGroups(): Promise<AxiosResponse<any>> {
+        try {
+            const response = await API.getapi().get('/user/groups/fulllist')
+            return response
+        }
+        catch (error) {
+            const { response } = error as AxiosError<ErrorResponse>
+            throw error
+        }
+    }
+
 }
 
 export default ChatService.getInstance()

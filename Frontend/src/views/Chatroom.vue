@@ -1,14 +1,32 @@
 <template>
     <div class="chat-container">
         <div class="background-image"></div>
+        <div class="logout-container">
+            <el-tooltip 
+                content="退出登录" 
+                placement="left"
+                effect="light"
+            >
+                <button 
+                    class="logout-btn"
+                    @click="handleLogout"
+                >
+                <i class="icon-signout"></i>
+                </button>
+            </el-tooltip>
+        </div>
         <div class="main-content">
 
             <div class="left-sidebar">
                 <div class="header">
                     <h2>聊天列表</h2>
-                    <button class="add-button" @click="showAddDialog = true">
-                    <span>+</span>
-                    </button>
+                    <el-button 
+                        class="circle-btn"
+                        type="primary"
+                        @click="showAddDialog = true"
+                    >
+                    <el-icon><Plus /></el-icon>
+                    </el-button>
                 </div>
                 <ul class="contact-list">
                     <li v-for="item in chatList" 
@@ -57,7 +75,14 @@
         <transition name="fade">
             <div v-if="showAddDialog" class="add-dialog">
                 <div class="dialog-content">
-                    <button @click="showAddDialog = false">关闭</button>
+                    <FriendGroupModal 
+                        @close="showAddDialog = false"
+                        :friends="friendList"
+                        :groups="groupList"
+                        :allUsers="allUsersList"
+                        :allGroups="allGroupsList"
+                        :getChatList="getChatList.bind(this)"
+                    />
                 </div>
             </div>
         </transition>
@@ -70,6 +95,12 @@ import ChatService from '@/services/api/chat'
 import { showMessage } from '@/utils/message'
 import { checkToken } from '@/services/api/auth'
 import WebSocketService from '@/services/websocket'
+import FriendGroupModal from '@/components/FriendGroupModal.vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
+import { tokenManager } from '@/services/api/auth'
+import { Plus } from '@element-plus/icons-vue'
+import chat from '@/services/api/chat'
 
 interface ChatItem {
     id: string
@@ -84,6 +115,7 @@ interface Message {
     sender: 'me' | 'other'
 }
 
+
 const chatList = ref<ChatItem[]>([])
 const selectedChat = ref<ChatItem | null>(null)
 const messages = ref<Message[]>([])
@@ -92,12 +124,19 @@ const showAddDialog = ref(false)
 const ws = WebSocketService
 const messagesContainer = ref<HTMLElement | null>(null)
 const isAtBottom = ref(true)
+const router = useRouter()
+const tokenmgr = tokenManager
+const friendList = ref<any[]>([])
+const groupList = ref<any[]>([])
+const allUsersList = ref<any[]>([])
+const allGroupsList = ref<any[]>([])
 
 const getChatList = async () => {
     try{
-        const groupList = (await ChatService.getGroupList()).data.groups
+        chatList.value = []
+        groupList.value = (await ChatService.getGroupList()).data.groups
         console.warn("groupList", groupList)
-        for (const group of groupList) {
+        for (const group of groupList.value) {
             chatList.value.push({
                 id: group.id,
                 name: group.groupname,
@@ -105,9 +144,9 @@ const getChatList = async () => {
                 lastMessage: group.last_message.message
             })
         }
-        const friendList = (await ChatService.getFriendList()).data.friends
+        friendList.value = (await ChatService.getFriendList()).data.friends
         console.warn("friendList", friendList)
-        for (const friend of friendList) {
+        for (const friend of friendList.value) {
             chatList.value.push({
                 id: friend.id,
                 name: friend.username,
@@ -115,6 +154,10 @@ const getChatList = async () => {
                 lastMessage: friend.last_message.message
             })
         }
+        allUsersList.value = (await ChatService.getAllUsers()).data.users
+        console.warn("allUsersList", allUsersList)
+        allGroupsList.value = (await ChatService.getAllGroups()).data.groups
+        console.warn("allGroupsList", allGroupsList)
     }
     catch (error) {
         console.error(error)
@@ -173,6 +216,28 @@ const handleScroll = () => {
     const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
     const threshold = 80
     isAtBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
+}
+
+const handleLogout = async () => {
+    try {
+        await ElMessageBox.confirm(
+            '确定要退出登录嘛？', 
+            '退出登录', 
+            {
+                confirmButtonText: '退出',
+                cancelButtonText: '取消',
+                type: 'warning',
+                customClass: 'custom-message-box',
+                confirmButtonClass: 'el-button--danger',
+                roundButton: true,
+            }
+        )
+        tokenmgr.clearToken()
+        router.push('/')        
+        showMessage.success('已退出登录')
+    } catch (error) {
+        showMessage.error('退出登录失败')
+    }
 }
 
 watch(ws.wsMessage, (message) => {
@@ -240,6 +305,27 @@ export default {
 </script>
   
 <style scoped>
+.circle-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    background: #07c160;
+    border: none !important;
+    color: white;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.el-icon {
+    font-size: 20px;
+}
+
+.circle-btn:hover {
+    transform: scale(1.1);
+}
+
 .chat-container {
     position: fixed;
     top: 0;
@@ -256,16 +342,16 @@ export default {
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('/login-bg.jpg') no-repeat center center;
+    background: url('/bg.jpg') no-repeat center center;
     background-size: cover;
-    filter: blur(3px);
+    /* filter: blur(3px); */
     z-index: -1;
 }
 
 .main-content {
     display: flex;
-    width: 95%;
-    height: 90%;
+    width: 80%;
+    height: 80%;
     margin: auto;
     background: rgba(255, 255, 255, 0.9);
     border-radius: 15px;
@@ -277,6 +363,7 @@ export default {
     width: 300px;
     border-right: 1px solid #eee;
     background: rgba(245, 245, 245, 0.8);
+    border-radius: 15px 0 0 15px;
 }
 
 .header {
@@ -285,22 +372,6 @@ export default {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #ddd;
-}
-
-.add-button {
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 50%;
-    background: #07c160;
-    color: white;
-    font-size: 24px;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.add-button:hover {
-    transform: scale(1.1);
 }
 
 .contact-list {
@@ -380,7 +451,7 @@ export default {
     max-width: 70%;
     margin: 10px 0;
     padding: 12px 15px;
-    border-radius: 15px;
+    border-radius: 10px;
     position: relative;
 }
 
@@ -457,12 +528,65 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 50;
 }
 
 .dialog-content {
     background: white;
     padding: 30px;
-    border-radius: 15px;
+    border-radius: 10px;
     min-width: 400px;
+    overflow: visible;
+}
+
+.logout-container {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    z-index: 30;
+}
+
+.logout-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #ff6b6b, #ff8787);
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logout-btn:hover {
+    transform: translateY(-3px) scale(1.1);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+}
+
+.icon-signout {
+    width: 24px;
+    height: 24px;
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M832 85H376c-17.7 0-32 14.3-32 32s14.3 32 32 32h456v678H376c-17.7 0-32 14.3-32 32s14.3 32 32 32h456c53 0 96-43 96-96V181c0-53-43-96-96-96zM732.5 507.5L635.4 610c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l57.1-57.1H192c-17.7 0-32-14.3-32-32s14.3-32 32-32h455.3l-57.1-57.1c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l97.1 97.1c12.5 12.5 12.5 32.8 0 45.3z" fill="white"/></svg>');
+    background-size: contain;
+}
+
+
+:deep(.custom-message-box) {
+    border-radius: 12px;
+    padding: 25px;
+    
+    .el-message-box__header {
+        padding-bottom: 15px;
+    }
+    
+    .el-message-box__content {
+        padding: 15px 0;
+    }
+    
+    .el-message-box__btns {
+        padding-top: 20px;
+    }
 }
 </style>

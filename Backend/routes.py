@@ -4,7 +4,7 @@ from auth import verify_password, create_access_token, get_password_hash, get_cu
 from sqlmodel import select
 from pydantic import BaseModel
 from auth import ACCESS_TOKEN_EXPIRE_MINUTES
-from utils import get_friends_list, get_group_list, get_message_by_groupid, get_message_by_userid, add_friend, remove_friend, create_group, add_user_to_group, remove_user_from_group
+from utils import get_friends_list, get_group_list, get_message_by_groupid, get_message_by_userid, add_friend, remove_friend, create_group, add_user_to_group, remove_user_from_group, get_all_users_list, get_all_groups_list
 
 class UserPass(BaseModel):
     username: str
@@ -21,6 +21,9 @@ class GroupID(BaseModel):
     
 class GroupName(BaseModel):
     groupname: str
+    
+class Username(BaseModel):
+    username: str
     
 
 router = APIRouter()
@@ -77,10 +80,10 @@ async def list_friends(session: SessionDepend, user: User = Depends(get_current_
         raise e
 
 @router.post("/user/friends/add")
-async def add_friend_to_user(user_id: UserID, session: SessionDepend, user: User = Depends(get_current_user)):
+async def add_friend_to_user(username: Username, session: SessionDepend, user: User = Depends(get_current_user)):
     try:
-        message = add_friend(user, user_id.user_id, session)
-        return {"message": message}
+        result = add_friend(user, username.username, session)
+        return {"message": result["message"], "friend_id": result["friend_id"]}
     except HTTPException as e:
         raise e
 
@@ -89,6 +92,22 @@ async def remove_friend_from_user(user_id: UserID, session: SessionDepend, user:
     try:
         message = remove_friend(user, user_id.user_id, session)
         return {"message": message}
+    except HTTPException as e:
+        raise e
+
+@router.get("/user/fulllist")
+async def list_groups(session: SessionDepend, user: User = Depends(get_current_user)):
+    try:
+        users = get_all_users_list(user, session)
+        return {"users": users}
+    except HTTPException as e:
+        raise e
+    
+@router.get("/user/groups/fulllist")
+async def list_groups(session: SessionDepend, user: User = Depends(get_current_user)):
+    try:
+        groups = get_all_groups_list(user, session)
+        return {"groups": groups}
     except HTTPException as e:
         raise e
 

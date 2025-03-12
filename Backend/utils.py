@@ -66,13 +66,19 @@ def get_friends_list(user: User, session: SessionDepend):
     except:
         raise exception
 
-def add_friend(user: User, friend_id: int, session: SessionDepend):
+def add_friend(user: User, friendName: str, session: SessionDepend):
     exception = HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="Friend addition failed",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        friend_id = session.exec(   
+            select(User).where(User.username == friendName)
+        ).first().id
+        if friend_id is None:
+            exception.detail = "Friend does not exist"
+            raise exception
         if user.id == friend_id:
             exception.detail = "You cannot add yourself as a friend"
             raise exception
@@ -91,7 +97,7 @@ def add_friend(user: User, friend_id: int, session: SessionDepend):
         session.add(db_friend)
         session.commit()
         session.refresh(db_friend)
-        return "Friend added successfully"
+        return {"message": "Friend added successfully", "friend_id": friend_id}
     except:
         raise exception
 
@@ -243,3 +249,39 @@ def remove_user_from_group(user: User, group_id: int, session: SessionDepend):
     except:
         raise exception
 
+def get_all_groups_list(user: User, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="get_all_groups_list failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        db_groups = session.exec(
+            select(Group)
+        ).all()
+        groups = []
+        for db_group in db_groups:
+            groups.append({"id": db_group.id, "groupname": db_group.groupname})
+        return groups
+    except Exception as e:
+        print(e)
+        raise exception
+    
+def get_all_users_list(user: User, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="get_all_users_list failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        db_users = session.exec(
+            select(User)
+        ).all()
+        users = []
+        for db_user in db_users:
+            if db_user.id != user.id:
+                users.append({"id": db_user.id, "username": db_user.username})
+        return users
+    except Exception as e:
+        print(e)
+        raise exception

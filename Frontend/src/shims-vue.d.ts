@@ -13,3 +13,8 @@ declare module '@/views/*' {
     const content: any
     export default content
 }
+
+declare module '@/components/FriendGroupModal.vue' {
+    const content: any
+    export default content
+}
