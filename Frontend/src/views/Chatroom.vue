@@ -31,7 +31,7 @@
                         <h2>{{ selectedChat.name }}</h2>
                     </div>
                     
-                    <div class="messages-container">
+                    <div class="messages-container" ref="messagesContainer" @scroll.passive="handleScroll">
                         <div v-for="(message, index) in messages" 
                             :key="index"
                             :class="['message-bubble', message.sender === 'me' ? 'sent' : 'received']">
@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import ChatService from '@/services/api/chat'
 import { showMessage } from '@/utils/message'
 import { checkToken } from '@/services/api/auth'
@@ -90,6 +90,8 @@ const messages = ref<Message[]>([])
 const newMessage = ref('')
 const showAddDialog = ref(false)
 const ws = WebSocketService
+const messagesContainer = ref<HTMLElement | null>(null)
+const isAtBottom = ref(true)
 
 const getChatList = async () => {
     try{
@@ -128,15 +130,6 @@ const selectChat = (chat: ChatItem) => {
         friend_id: chat.type === 'friend' ? chat.id : 0,
         group_id: chat.type === 'group' ? chat.id : 0
     })
-    
-    // socket.onmessage = (event) => {
-    //     const data = JSON.parse(event.data)
-    //     messages.value.push({
-    //         content: data.content,
-    //         timestamp: Date.now(),
-    //         sender: data.sender === 'user' ? 'other' : 'me'
-    //     })
-    // }
 }
 
 const sendMessage = () => {
@@ -154,6 +147,7 @@ const sendMessage = () => {
                 timestamp: Date.now(),
                 sender: 'me'
             })
+            scrollToBottom()
             newMessage.value = ''
         }
     }
@@ -161,6 +155,24 @@ const sendMessage = () => {
         console.error(error)
         showMessage.error('发送失败，请检查网络连接')
     }
+}
+
+const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
+    nextTick(() => {
+        if (messagesContainer.value) {
+            messagesContainer.value.scrollTo({
+                top: messagesContainer.value.scrollHeight,
+                behavior: behavior
+            })
+        }
+    })
+}
+
+const handleScroll = () => {
+    if (!messagesContainer.value) return
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
+    const threshold = 80
+    isAtBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
 }
 
 watch(ws.wsMessage, (message) => {
@@ -171,6 +183,7 @@ watch(ws.wsMessage, (message) => {
                 timestamp: Date.now(),
                 sender: 'other'
             })
+            if(isAtBottom.value) scrollToBottom()
         }
         else if (message.type === "group_messages" && "group_messages" in message && Array.isArray(message["group_messages"])) {
             message["group_messages"].forEach((group_message: JSON) => {
@@ -182,6 +195,7 @@ watch(ws.wsMessage, (message) => {
                     })
                 }
             })
+            scrollToBottom()
         }
         else if (message.type === "friends_messages" && "friends_messages" in message && Array.isArray(message["friends_messages"])) {
             message["friends_messages"].forEach((friend_message: JSON) => {
@@ -195,6 +209,7 @@ watch(ws.wsMessage, (message) => {
                     })
                 }
             })
+            scrollToBottom()
         }
     }
     
