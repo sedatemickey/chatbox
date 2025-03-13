@@ -40,6 +40,13 @@ class PrivateMessage(SQLModel, table=True):
     receiverid: int = Field(index=True)
     message: str
     created_at: datetime = Field(default_factory=datetime.now)
+    
+class AichatMessage(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    message_type: str
+    message: str
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
 sqlite_file_name = "database.db"

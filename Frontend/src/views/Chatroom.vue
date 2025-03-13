@@ -50,10 +50,24 @@
                     </div>
                     
                     <div class="messages-container" ref="messagesContainer" @scroll.passive="handleScroll">
-                        <div v-for="(message, index) in messages" 
+                        <div v-if="selectedChat?.type === 'aichat'" v-for="(message, indexai) in aichatMessages" 
+                            :key="indexai"
+                            :class="['message-bubble', message.sender === 'me' ? 'sent' : 'received']">
+                            <div class="content">
+                                <MarkdownRenderer 
+                                    v-if="selectedChat?.type === 'aichat' && message.sender === 'other'"
+                                    :content="message.content"
+                                />
+                                <template v-else>{{ message.content }}</template>
+                            </div>
+                            <div class="timestamp">{{ formatTime(message.timestamp) }}</div>
+                        </div>
+                        <div v-else v-for="(message, index) in messages" 
                             :key="index"
                             :class="['message-bubble', message.sender === 'me' ? 'sent' : 'received']">
-                            <div class="content">{{ message.content }}</div>
+                            <div class="content">
+                                {{ message.content }}
+                            </div>
                             <div class="timestamp">{{ formatTime(message.timestamp) }}</div>
                         </div>
                     </div>
@@ -101,11 +115,12 @@ import { useRouter } from 'vue-router'
 import { tokenManager } from '@/services/api/auth'
 import { Plus } from '@element-plus/icons-vue'
 import chat from '@/services/api/chat'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 interface ChatItem {
     id: string
     name: string
-    type: 'friend' | 'group'
+    type: 'friend' | 'group' | 'aichat'
     lastMessage: string
 }
 
@@ -119,6 +134,7 @@ interface Message {
 const chatList = ref<ChatItem[]>([])
 const selectedChat = ref<ChatItem | null>(null)
 const messages = ref<Message[]>([])
+const aichatMessages = ref<Message[]>([])
 const newMessage = ref('')
 const showAddDialog = ref(false)
 const ws = WebSocketService
@@ -134,6 +150,12 @@ const allGroupsList = ref<any[]>([])
 const getChatList = async () => {
     try{
         chatList.value = []
+        chatList.value.push({
+            id: '0',
+            name: 'Aichat',
+            type: 'aichat',
+            lastMessage: ''
+        })
         groupList.value = (await ChatService.getGroupList()).data.groups
         console.warn("groupList", groupList)
         for (const group of groupList.value) {
@@ -178,18 +200,37 @@ const selectChat = (chat: ChatItem) => {
 const sendMessage = () => {
     try {
         if (newMessage.value.trim()) {
-            const message = {
-                type: selectedChat.value?.type === 'friend' ? 'private_message' : 'group_message',
-                group_id: selectedChat.value?.type === 'group' ? selectedChat.value.id : 0,
-                friend_id: selectedChat.value?.type === 'friend' ? selectedChat.value.id : 0,
-                message: newMessage.value
+            if (selectedChat.value?.type === 'aichat') {
+                const message = {
+                    type: 'aichat_message',
+                    message: newMessage.value
+                }
+                ws.sendJSON(message)
+                aichatMessages.value.push({
+                    content: newMessage.value,
+                    timestamp: Date.now(),
+                    sender: 'me'
+                })
+                aichatMessages.value.push({
+                    content: "",
+                    timestamp: Date.now(),
+                    sender: 'other'
+                })
             }
-            ws.sendJSON(message)
-            messages.value.push({
-                content: newMessage.value,
-                timestamp: Date.now(),
-                sender: 'me'
-            })
+            else {
+                const message = {
+                    type: selectedChat.value?.type === 'friend' ? 'private_message' : 'group_message',
+                    group_id: selectedChat.value?.type === 'group' ? selectedChat.value.id : 0,
+                    friend_id: selectedChat.value?.type === 'friend' ? selectedChat.value.id : 0,
+                    message: newMessage.value
+                }
+                ws.sendJSON(message)
+                messages.value.push({
+                    content: newMessage.value,
+                    timestamp: Date.now(),
+                    sender: 'me'
+                })
+            }
             scrollToBottom()
             newMessage.value = ''
         }
@@ -274,6 +315,29 @@ watch(ws.wsMessage, (message) => {
                     })
                 }
             })
+            scrollToBottom()
+        }
+        else if (message.type === "aichat_messages" && "aichat_messages" in message && Array.isArray(message["aichat_messages"]) && aichatMessages.value.length < 1) {
+            aichatMessages.value.push({
+                content: "山东大学智能助手",
+                timestamp: Date.now(),
+                sender: 'other'
+            })
+            message["aichat_messages"].forEach((aichat_messages: JSON) => {
+                if ("message" in aichat_messages && typeof aichat_messages["message"] === "string"
+                  && "type" in aichat_messages && typeof aichat_messages["type"] === "string"
+                  && "created_at" in aichat_messages && typeof aichat_messages["created_at"] === "number") {
+                    aichatMessages.value.push({
+                        content: aichat_messages["message"],
+                        timestamp: aichat_messages["created_at"],
+                        sender: aichat_messages["type"] === 'received' ? 'other' : 'me'
+                    })
+                }
+            })
+            scrollToBottom()
+        }
+        else if (message["type"] === "get_aichat_message" && "message" in message && typeof message["message"] === "string") {
+            aichatMessages.value[aichatMessages.value.length - 1].content += message["message"]
             scrollToBottom()
         }
     }
@@ -453,6 +517,34 @@ export default {
     padding: 12px 15px;
     border-radius: 10px;
     position: relative;
+    .content {
+        white-space: pre-wrap;
+        word-break: break-word;
+
+        &:not(.markdown-body) {
+        white-space: normal;
+        }
+    }
+
+    &.received .markdown-body {
+        h1, h2, h3, h4, h5, h6 {
+        font-weight: 600;
+        line-height: 1.25;
+        margin: 1em 0 0.5em;
+        }
+        
+        ul, ol {
+        padding-left: 2em;
+        margin: 0.5em 0;
+        }
+        
+        blockquote {
+        border-left: 4px solid #dfe2e5;
+        color: #6a737d;
+        margin: 0.5em 0;
+        padding: 0 1em;
+        }
+    }
 }
 
 .message-bubble.sent {

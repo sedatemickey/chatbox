@@ -1,4 +1,4 @@
-from database import User, Group, GroupMember, Friends, GroupMessage, PrivateMessage, SessionDepend
+from database import User, Group, GroupMember, Friends, GroupMessage, PrivateMessage, SessionDepend, AichatMessage
 from sqlmodel import select, exists, or_, and_
 from fastapi import HTTPException, status
 
@@ -282,6 +282,38 @@ def get_all_users_list(user: User, session: SessionDepend):
             if db_user.id != user.id:
                 users.append({"id": db_user.id, "username": db_user.username})
         return users
+    except Exception as e:
+        print(e)
+        raise exception
+    
+def get_aichat_message(user: User, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="get_aichat_message failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        db_messages = session.exec(
+            select(AichatMessage).where(AichatMessage.user_id == user.id)
+        ).all()
+        db_messages.sort(key=lambda x: x.created_at, reverse=False)
+        return [{"message": message.message, "type": message.message_type, "created_at": message.created_at.timestamp() * 1000} for message in db_messages]
+    except Exception as e:
+        print(e)
+        raise exception
+
+def save_aichat_message(user: User, message, type, session: SessionDepend):
+    exception = HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="aichat message saving failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        db_message = AichatMessage(user_id=user.id, message_type=type, message=message)
+        session.add(db_message)
+        session.commit()
+        session.refresh(db_message)
+        return db_message
     except Exception as e:
         print(e)
         raise exception

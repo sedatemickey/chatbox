@@ -18,3 +18,8 @@ declare module '@/components/FriendGroupModal.vue' {
     const content: any
     export default content
 }
+
+declare module 'markdown-it' {
+    import MarkdownIt from 'markdown-it/lib'
+    export default MarkdownIt
+}
