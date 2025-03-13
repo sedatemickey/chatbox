@@ -5,6 +5,7 @@ from database import create_db_and_tables
 from routes import router
 from wsrouter import wsrouter
 import os
+from aichat import airouter
 
 app = FastAPI()
 FRONTEND_URL = os.getenv("FRONTEND_URL")
@@ -23,6 +24,7 @@ async def startup_event():
 
 app.include_router(router)
 app.include_router(wsrouter)
+app.include_router(airouter)
 
 
 if __name__ == "__main__":

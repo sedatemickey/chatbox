@@ -2,7 +2,7 @@ from fastapi import WebSocket, APIRouter, WebSocketDisconnect, Depends, HTTPExce
 from auth import get_current_user_by_token
 from database import SessionDepend, User
 import json
-from utils import save_group_message, save_private_message, get_message_by_groupid, get_message_by_userid, get_aichat_message, save_aichat_message
+from utils import save_group_message, save_private_message, get_message_by_groupid, get_message_by_userid, get_aichat_message, save_aichat_message, clear_aichat_message
 from aichat import chat
 
 class ConnectionInfo:
@@ -71,20 +71,13 @@ class ConnectionManager:
                 await self.private_broadcast(wsinfo.info.user.id, message.get("friend_id"), message.get("message"))
             
             # 发送Aichat信息
-            elif(message.get("type") == "aichat_message"):
-                save_aichat_message(wsinfo.info.user, message.get("message"), "sent", session)
-                chatSession = chat(message.get("message"), get_aichat_message(wsinfo.info.user, session))
-                sendJson = {"type": "info", "message": "aichat message sent"}
+            # 已移动到aichat.py
+            
+            elif(message.get("type") == "clear_aichat_message"):
+                clear_aichat_message(wsinfo.info.user, session)
+                sendJson = {"type": "aichat_messages", "aichat_messages": get_aichat_message(wsinfo.info.user, session), "message": "chat changed"}
                 await wsinfo.websocket.send_text(json.dumps(sendJson))
-                await self.group_broadcast(message.get("group_id"), message.get("message"), wsinfo.info.user.id)
-                received = ""
-                for chunk in chatSession:
-                    received += chunk
-                    sendJson = {"type": "get_aichat_message", "info": "ai_message", "message": chunk}
-                    await wsinfo.websocket.send_text(json.dumps(sendJson))
-                sendJson = {"type": "get_aichat_message", "info": "end"}
-                await wsinfo.websocket.send_text(json.dumps(sendJson))
-                save_aichat_message(wsinfo.info.user, received, "received", session)
+                
                 
             # 获取新chat的历史消息
             elif(message.get("type") == "change_chat"):

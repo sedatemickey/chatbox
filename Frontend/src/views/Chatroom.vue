@@ -76,7 +76,8 @@
                         <input v-model="newMessage" 
                                 @keyup.enter="sendMessage"
                                 placeholder="输入消息...">
-                        <button @click="sendMessage">发送</button>
+                        <button class="send-btn" @click="sendMessage">发送</button>
+                        <button v-if="selectedChat?.type === 'aichat'" class="clear-btn" @click="clearAiMessage" :disabled="aiChating">清空</button>
                     </div>
                 </div>
         
@@ -114,7 +115,6 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { tokenManager } from '@/services/api/auth'
 import { Plus } from '@element-plus/icons-vue'
-import chat from '@/services/api/chat'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 interface ChatItem {
@@ -146,6 +146,7 @@ const friendList = ref<any[]>([])
 const groupList = ref<any[]>([])
 const allUsersList = ref<any[]>([])
 const allGroupsList = ref<any[]>([])
+const aiChating = ref(false)
 
 const getChatList = async () => {
     try{
@@ -201,11 +202,12 @@ const sendMessage = () => {
     try {
         if (newMessage.value.trim()) {
             if (selectedChat.value?.type === 'aichat') {
-                const message = {
-                    type: 'aichat_message',
-                    message: newMessage.value
-                }
-                ws.sendJSON(message)
+                // const message = {
+                //     type: 'aichat_message',
+                //     message: newMessage.value
+                // }
+                // ws.sendJSON(message)
+                if (aiChating.value) return
                 aichatMessages.value.push({
                     content: newMessage.value,
                     timestamp: Date.now(),
@@ -216,6 +218,9 @@ const sendMessage = () => {
                     timestamp: Date.now(),
                     sender: 'other'
                 })
+                scrollToBottom()
+                updateAichatMessage(newMessage.value)
+                newMessage.value = ''
             }
             else {
                 const message = {
@@ -230,15 +235,38 @@ const sendMessage = () => {
                     timestamp: Date.now(),
                     sender: 'me'
                 })
+                scrollToBottom()
+                newMessage.value = ''
             }
-            scrollToBottom()
-            newMessage.value = ''
+            
         }
     }
     catch (error) {
         console.error(error)
         showMessage.error('发送失败，请检查网络连接')
     }
+}
+
+const updateAichatMessage = async (message: string) => {
+    const aichatStream = await ChatService.getAichatStream(message)
+    const reader = aichatStream.getReader()
+    const decoder = new TextDecoder()
+    aiChating.value = true
+    while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        aichatMessages.value[aichatMessages.value.length - 1].content += decoder.decode(value)
+        if(isAtBottom.value) scrollToBottom()
+    }
+    aiChating.value = false
+}
+
+const clearAiMessage = () => {
+    aichatMessages.value = []
+    const message = {
+        type: "clear_aichat_message"
+    }
+    ws.sendJSON(message)
 }
 
 const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
@@ -255,7 +283,7 @@ const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
 const handleScroll = () => {
     if (!messagesContainer.value) return
     const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
-    const threshold = 80
+    const threshold = 30
     isAtBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
 }
 
@@ -317,9 +345,9 @@ watch(ws.wsMessage, (message) => {
             })
             scrollToBottom()
         }
-        else if (message.type === "aichat_messages" && "aichat_messages" in message && Array.isArray(message["aichat_messages"]) && aichatMessages.value.length < 1) {
+        else if (message.type === "aichat_messages" && "aichat_messages" in message && Array.isArray(message["aichat_messages"]) && aichatMessages.value.length === 0) {
             aichatMessages.value.push({
-                content: "山东大学智能助手",
+                content: "### 这是**Deepseek R3 671B模型**，从山大智能助手~~借~~来的api，支持上下文联想\n\n\n\n~~它本来还应该支持切换QwQ模型和开启联网查询，但我懒得写了~~",
                 timestamp: Date.now(),
                 sender: 'other'
             })
@@ -336,10 +364,10 @@ watch(ws.wsMessage, (message) => {
             })
             scrollToBottom()
         }
-        else if (message["type"] === "get_aichat_message" && "message" in message && typeof message["message"] === "string") {
-            aichatMessages.value[aichatMessages.value.length - 1].content += message["message"]
-            scrollToBottom()
-        }
+        // else if (message["type"] === "get_aichat_message" && "message" in message && typeof message["message"] === "string") {
+        //     aichatMessages.value[aichatMessages.value.length - 1].content += message["message"]
+        //     scrollToBottom()
+        // }
     }
     
     
@@ -522,7 +550,7 @@ export default {
         word-break: break-word;
 
         &:not(.markdown-body) {
-        white-space: normal;
+            white-space: normal;
         }
     }
 
@@ -582,9 +610,17 @@ export default {
     padding: 12px 25px;
     border: none;
     border-radius: 25px;
-    background: #07c160;
     color: white;
     cursor: pointer;
+}
+
+.clear-btn {
+    margin-left: 10px;
+    background: #c13f07;
+}
+
+.send-btn {
+    background: #07c160;
 }
 
 .empty-chat {

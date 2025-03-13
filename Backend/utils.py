@@ -317,3 +317,26 @@ def save_aichat_message(user: User, message, type, session: SessionDepend):
     except Exception as e:
         print(e)
         raise exception
+    
+def clear_aichat_message(user: User, session: SessionDepend):
+    exception = HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="clear_aichat_message failed",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        db_message = session.exec(
+            select(AichatMessage).where(
+               AichatMessage.user_id == user.id
+            )
+        ).all()
+        if db_message is None:
+            return "No message to clear"
+        else:
+            for message in db_message:
+                session.delete(message)
+            session.commit()
+            return "Message cleared successfully"
+    except Exception as e:
+        print(e)
+        raise exception
