@@ -84,6 +84,7 @@ const processedContent = computed(() => {
 
 .markdown-body code {
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    color: #369;
 }
 
 .markdown-body img {
