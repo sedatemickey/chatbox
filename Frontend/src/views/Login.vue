@@ -49,7 +49,6 @@ export default {
     },
     methods: {
         login() {
-            console.log('登录信息:', this.form)
             handleLogin(this.form.username, this.form.password)
         }
     }

@@ -158,7 +158,7 @@ const getChatList = async () => {
             lastMessage: ''
         })
         groupList.value = (await ChatService.getGroupList()).data.groups
-        console.warn("groupList", groupList)
+        // console.warn("groupList", groupList)
         for (const group of groupList.value) {
             chatList.value.push({
                 id: group.id,
@@ -168,7 +168,7 @@ const getChatList = async () => {
             })
         }
         friendList.value = (await ChatService.getFriendList()).data.friends
-        console.warn("friendList", friendList)
+        // console.warn("friendList", friendList)
         for (const friend of friendList.value) {
             chatList.value.push({
                 id: friend.id,
@@ -178,12 +178,13 @@ const getChatList = async () => {
             })
         }
         allUsersList.value = (await ChatService.getAllUsers()).data.users
-        console.warn("allUsersList", allUsersList)
+        // console.warn("allUsersList", allUsersList)
         allGroupsList.value = (await ChatService.getAllGroups()).data.groups
-        console.warn("allGroupsList", allGroupsList)
+        // console.warn("allGroupsList", allGroupsList)
     }
     catch (error) {
         console.error(error)
+        showMessage.error('获取聊天列表失败，请检查网络连接')
     }
 }
 
@@ -347,7 +348,7 @@ watch(ws.wsMessage, (message) => {
         }
         else if (message.type === "aichat_messages" && "aichat_messages" in message && Array.isArray(message["aichat_messages"]) && aichatMessages.value.length === 0) {
             aichatMessages.value.push({
-                content: "### 这是**Deepseek R3 671B模型**，从山大智能助手~~借~~来的api，支持上下文联想\n\n\n\n~~它本来还应该支持切换QwQ模型和开启联网查询，但我懒得写了~~",
+                content: "### 这是**Deepseek R1 671B模型**，从山大智能助手~~借~~来的api，支持上下文联想\n\n\n\n~~它本来还应该支持切换QwQ模型和开启联网查询，但我懒得写了~~",
                 timestamp: Date.now(),
                 sender: 'other'
             })

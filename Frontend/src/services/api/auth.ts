@@ -70,7 +70,8 @@ class TokenManager {
         } catch (error) {
             const axiosError = error as AxiosError<ErrorResponse>
             if (axiosError.response?.status === 401) {
-                console.log('Refresh token failed:', axiosError.response.data.detail)
+                console.error('Refresh token failed:', axiosError.response.data.detail)
+                showMessage.error('Refresh token failed:' + axiosError.response.data.detail)
                 this.clearToken()
             }
         }
@@ -101,7 +102,7 @@ export const handleLogin = async (username: string, password: string): Promise<v
     } catch (error) {
         const axiosError = error as AxiosError<ErrorResponse>
         if (axiosError.response?.status === 401) {
-            console.log('Login failed:', axiosError.response.data.detail)
+            console.error('Login failed:', axiosError.response.data.detail)
             showMessage.error(axiosError.response.data.detail)
         }
         throw error
@@ -120,7 +121,7 @@ export const handleRegister = async (username: string, password: string): Promis
     } catch (error) {
         const axiosError = error as AxiosError<ErrorResponse>
         if (axiosError.response?.status === 422) {
-            console.log('Registration failed:', axiosError.response.data.detail)
+            console.error('Registration failed:', axiosError.response.data.detail)
             showMessage.error(axiosError.response.data.detail)
         }
         throw error

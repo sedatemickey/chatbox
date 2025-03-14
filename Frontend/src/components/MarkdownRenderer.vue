@@ -99,6 +99,13 @@ const processedContent = computed(() => {
 
 .markdown-body th,
 .markdown-body td {
+    background-color: #eee;
+}
+
+
+
+.markdown-body th,
+.markdown-body td {
     border: 1px solid #dfe2e5;
     padding: 0.6em 1em;
 }

@@ -170,7 +170,6 @@ export default {
     methods: {
         async handleAddFriend() {
             if (this.newFriendName) {
-                console.error('handleAddFriend')
                 bool = await this.addFriend(this.newFriendName)
                 if (bool) {
                     this.newFriendName = ''
@@ -185,7 +184,7 @@ export default {
                 return true
             }
             catch (error) {
-                console.log(error)
+                console.error(error)
                 showMessage.error('添加好友失败: ' + error.data.detail)
                 return false
             }
@@ -197,7 +196,7 @@ export default {
                 this.getChatList()
             }
             catch (error) {
-                console.log(error)
+                console.error(error)
                 showMessage.error('移除好友失败: ' + error.data.detail)
             }
         },
@@ -222,7 +221,7 @@ export default {
                     return true
                 }
                 catch (error) {
-                    console.log(error)
+                    console.error(error)
                     showMessage.error('加入群组失败: ' + error.data.detail)
                     return false
                 }
@@ -237,7 +236,7 @@ export default {
                     return true
                 }
                 catch (error) {
-                    console.log(error)
+                    console.error(error)
                     showMessage.error('加入群组失败: ' + error.data.detail)
                     return false
                 }
@@ -250,7 +249,7 @@ export default {
                 this.getChatList()
             }
             catch (error) {
-                console.log(error)
+                console.error(error)
                 showMessage.error('退出群组失败: ' + error.data.detail)
             }
         }
