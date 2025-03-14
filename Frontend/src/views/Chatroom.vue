@@ -31,7 +31,7 @@
                 <ul class="contact-list">
                     <li v-for="item in chatList" 
                         :key="item.id" 
-                        :class="{ active: selectedChat?.id === item.id }"
+                        :class="{ active: selectedChat?.id === item.id && selectedChat?.type === item.type }"
                         @click="selectChat(item)">
                         <div class="avatar">{{ item.name.charAt(0) }}</div>
                         <div class="info">
@@ -50,10 +50,24 @@
                     </div>
                     
                     <div class="messages-container" ref="messagesContainer" @scroll.passive="handleScroll">
-                        <div v-for="(message, index) in messages" 
+                        <div v-if="selectedChat?.type === 'aichat'" v-for="(message, indexai) in aichatMessages" 
+                            :key="indexai"
+                            :class="['message-bubble', message.sender === 'me' ? 'sent' : 'received']">
+                            <div class="content">
+                                <MarkdownRenderer 
+                                    v-if="selectedChat?.type === 'aichat' && message.sender === 'other'"
+                                    :content="message.content"
+                                />
+                                <template v-else>{{ message.content }}</template>
+                            </div>
+                            <div class="timestamp">{{ formatTime(message.timestamp) }}</div>
+                        </div>
+                        <div v-else v-for="(message, index) in messages" 
                             :key="index"
                             :class="['message-bubble', message.sender === 'me' ? 'sent' : 'received']">
-                            <div class="content">{{ message.content }}</div>
+                            <div class="content">
+                                {{ message.content }}
+                            </div>
                             <div class="timestamp">{{ formatTime(message.timestamp) }}</div>
                         </div>
                     </div>
@@ -62,7 +76,8 @@
                         <input v-model="newMessage" 
                                 @keyup.enter="sendMessage"
                                 placeholder="输入消息...">
-                        <button @click="sendMessage">发送</button>
+                        <button class="send-btn" @click="sendMessage">发送</button>
+                        <button v-if="selectedChat?.type === 'aichat'" class="clear-btn" @click="clearAiMessage" :disabled="aiChating">清空</button>
                     </div>
                 </div>
         
@@ -100,12 +115,12 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { tokenManager } from '@/services/api/auth'
 import { Plus } from '@element-plus/icons-vue'
-import chat from '@/services/api/chat'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 interface ChatItem {
     id: string
     name: string
-    type: 'friend' | 'group'
+    type: 'friend' | 'group' | 'aichat'
     lastMessage: string
 }
 
@@ -119,6 +134,7 @@ interface Message {
 const chatList = ref<ChatItem[]>([])
 const selectedChat = ref<ChatItem | null>(null)
 const messages = ref<Message[]>([])
+const aichatMessages = ref<Message[]>([])
 const newMessage = ref('')
 const showAddDialog = ref(false)
 const ws = WebSocketService
@@ -130,22 +146,29 @@ const friendList = ref<any[]>([])
 const groupList = ref<any[]>([])
 const allUsersList = ref<any[]>([])
 const allGroupsList = ref<any[]>([])
+const aiChating = ref(false)
 
 const getChatList = async () => {
     try{
         chatList.value = []
+        chatList.value.push({
+            id: '0',
+            name: 'Aichat',
+            type: 'aichat',
+            lastMessage: ''
+        })
         groupList.value = (await ChatService.getGroupList()).data.groups
-        console.warn("groupList", groupList)
+        // console.warn("groupList", groupList)
         for (const group of groupList.value) {
             chatList.value.push({
                 id: group.id,
                 name: group.groupname,
                 type: 'group',
-                lastMessage: group.last_message.message
+                lastMessage: group.last_message.message,
             })
         }
         friendList.value = (await ChatService.getFriendList()).data.friends
-        console.warn("friendList", friendList)
+        // console.warn("friendList", friendList)
         for (const friend of friendList.value) {
             chatList.value.push({
                 id: friend.id,
@@ -155,19 +178,20 @@ const getChatList = async () => {
             })
         }
         allUsersList.value = (await ChatService.getAllUsers()).data.users
-        console.warn("allUsersList", allUsersList)
+        // console.warn("allUsersList", allUsersList)
         allGroupsList.value = (await ChatService.getAllGroups()).data.groups
-        console.warn("allGroupsList", allGroupsList)
+        // console.warn("allGroupsList", allGroupsList)
     }
     catch (error) {
         console.error(error)
+        showMessage.error('获取聊天列表失败，请检查网络连接')
     }
 }
 
 const selectChat = (chat: ChatItem) => {
     selectedChat.value = chat
     messages.value = []
-    
+    scrollToBottom()
     ws.sendJSON({
         type: 'change_chat',
         friend_id: chat.type === 'friend' ? chat.id : 0,
@@ -178,26 +202,75 @@ const selectChat = (chat: ChatItem) => {
 const sendMessage = () => {
     try {
         if (newMessage.value.trim()) {
-            const message = {
-                type: selectedChat.value?.type === 'friend' ? 'private_message' : 'group_message',
-                group_id: selectedChat.value?.type === 'group' ? selectedChat.value.id : 0,
-                friend_id: selectedChat.value?.type === 'friend' ? selectedChat.value.id : 0,
-                message: newMessage.value
+            if (selectedChat.value?.type === 'aichat') {
+                // const message = {
+                //     type: 'aichat_message',
+                //     message: newMessage.value
+                // }
+                // ws.sendJSON(message)
+                if (aiChating.value) return
+                aichatMessages.value.push({
+                    content: newMessage.value,
+                    timestamp: Date.now(),
+                    sender: 'me'
+                })
+                aichatMessages.value.push({
+                    content: "",
+                    timestamp: Date.now(),
+                    sender: 'other'
+                })
+                scrollToBottom()
+                updateAichatMessage(newMessage.value)
+                newMessage.value = ''
             }
-            ws.sendJSON(message)
-            messages.value.push({
-                content: newMessage.value,
-                timestamp: Date.now(),
-                sender: 'me'
-            })
-            scrollToBottom()
-            newMessage.value = ''
+            else {
+                const message = {
+                    type: selectedChat.value?.type === 'friend' ? 'private_message' : 'group_message',
+                    group_id: selectedChat.value?.type === 'group' ? selectedChat.value.id : 0,
+                    friend_id: selectedChat.value?.type === 'friend' ? selectedChat.value.id : 0,
+                    message: newMessage.value
+                }
+                ws.sendJSON(message)
+                messages.value.push({
+                    content: newMessage.value,
+                    timestamp: Date.now(),
+                    sender: 'me'
+                })
+                if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                    chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = newMessage.value
+                }
+                scrollToBottom()
+                newMessage.value = ''
+            }
+            
         }
     }
     catch (error) {
         console.error(error)
         showMessage.error('发送失败，请检查网络连接')
     }
+}
+
+const updateAichatMessage = async (message: string) => {
+    const aichatStream = await ChatService.getAichatStream(message)
+    const reader = aichatStream.getReader()
+    const decoder = new TextDecoder()
+    aiChating.value = true
+    while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        aichatMessages.value[aichatMessages.value.length - 1].content += decoder.decode(value)
+        if(isAtBottom.value) scrollToBottom()
+    }
+    aiChating.value = false
+}
+
+const clearAiMessage = () => {
+    aichatMessages.value = []
+    const message = {
+        type: "clear_aichat_message"
+    }
+    ws.sendJSON(message)
 }
 
 const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
@@ -214,7 +287,7 @@ const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
 const handleScroll = () => {
     if (!messagesContainer.value) return
     const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
-    const threshold = 80
+    const threshold = 30
     isAtBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
 }
 
@@ -248,6 +321,9 @@ watch(ws.wsMessage, (message) => {
                 timestamp: Date.now(),
                 sender: 'other'
             })
+            if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = message["message"]
+            }
             if(isAtBottom.value) scrollToBottom()
         }
         else if (message.type === "group_messages" && "group_messages" in message && Array.isArray(message["group_messages"])) {
@@ -260,6 +336,9 @@ watch(ws.wsMessage, (message) => {
                     })
                 }
             })
+            if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = message["group_messages"][message["group_messages"].length - 1]["message"]
+            }
             scrollToBottom()
         }
         else if (message.type === "friends_messages" && "friends_messages" in message && Array.isArray(message["friends_messages"])) {
@@ -274,8 +353,34 @@ watch(ws.wsMessage, (message) => {
                     })
                 }
             })
+            if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = message["friends_messages"][message["friends_messages"].length - 1]["message"]
+            }
             scrollToBottom()
         }
+        else if (message.type === "aichat_messages" && "aichat_messages" in message && Array.isArray(message["aichat_messages"]) && aichatMessages.value.length === 0) {
+            aichatMessages.value.push({
+                content: "### 这是**Deepseek R1 671B模型 联网版**，从山大智能助手~~借~~来的api，支持上下文联想\n\n\n\n~~它本来还应该支持切换QwQ模型和V3模型，但我懒得写咯~~",
+                timestamp: Date.now(),
+                sender: 'other'
+            })
+            message["aichat_messages"].forEach((aichat_messages: JSON) => {
+                if ("message" in aichat_messages && typeof aichat_messages["message"] === "string"
+                  && "type" in aichat_messages && typeof aichat_messages["type"] === "string"
+                  && "created_at" in aichat_messages && typeof aichat_messages["created_at"] === "number") {
+                    aichatMessages.value.push({
+                        content: aichat_messages["message"],
+                        timestamp: aichat_messages["created_at"],
+                        sender: aichat_messages["type"] === 'received' ? 'other' : 'me'
+                    })
+                }
+            })
+            scrollToBottom()
+        }
+        // else if (message["type"] === "get_aichat_message" && "message" in message && typeof message["message"] === "string") {
+        //     aichatMessages.value[aichatMessages.value.length - 1].content += message["message"]
+        //     scrollToBottom()
+        // }
     }
     
     
@@ -453,6 +558,34 @@ export default {
     padding: 12px 15px;
     border-radius: 10px;
     position: relative;
+    .content {
+        white-space: pre-wrap;
+        word-break: break-word;
+
+        &:not(.markdown-body) {
+            white-space: normal;
+        }
+    }
+
+    &.received .markdown-body {
+        h1, h2, h3, h4, h5, h6 {
+        font-weight: 600;
+        line-height: 1.25;
+        margin: 1em 0 0.5em;
+        }
+        
+        ul, ol {
+        padding-left: 2em;
+        margin: 0.5em 0;
+        }
+        
+        blockquote {
+        border-left: 4px solid #dfe2e5;
+        color: #6a737d;
+        margin: 0.5em 0;
+        padding: 0 1em;
+        }
+    }
 }
 
 .message-bubble.sent {
@@ -490,9 +623,17 @@ export default {
     padding: 12px 25px;
     border: none;
     border-radius: 25px;
-    background: #07c160;
     color: white;
     cursor: pointer;
+}
+
+.clear-btn {
+    margin-left: 10px;
+    background: #c13f07;
+}
+
+.send-btn {
+    background: #07c160;
 }
 
 .empty-chat {

@@ -17,7 +17,7 @@ class Group(SQLModel, table=True):
     
 class GroupMember(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    groupid: int = Field(index=True, unique=True)
+    groupid: int = Field(index=True)
     userid: int = Field(index=True)
     created_at: datetime = Field(default_factory=datetime.now)
     
@@ -38,6 +38,13 @@ class PrivateMessage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     senderid: int = Field(index=True)
     receiverid: int = Field(index=True)
+    message: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+class AichatMessage(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    message_type: str
     message: str
     created_at: datetime = Field(default_factory=datetime.now)
 

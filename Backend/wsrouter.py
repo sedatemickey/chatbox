@@ -2,7 +2,8 @@ from fastapi import WebSocket, APIRouter, WebSocketDisconnect, Depends, HTTPExce
 from auth import get_current_user_by_token
 from database import SessionDepend, User
 import json
-from utils import save_group_message, save_private_message, get_message_by_groupid, get_message_by_userid
+from utils import save_group_message, save_private_message, get_message_by_groupid, get_message_by_userid, get_aichat_message, save_aichat_message, clear_aichat_message
+from aichat import chat
 
 class ConnectionInfo:
     def __init__(self, user: User, group_id: int = None, friend_id: int = None):
@@ -53,27 +54,46 @@ class ConnectionManager:
                 await connection.websocket.send_text(json.dumps(sendJson))
                 
     async def handle_message(self, session: SessionDepend, wsinfo: WsInfo, message: dict):
-        print("ws: ", message)
         try:
+            # 发送群组信息
             if(message.get("type") == "group_message"):
                 save_group_message(wsinfo.info.user, message.get("group_id"), message.get("message"), session)
                 sendJson = {"type": "info", "message": "group message sent"}
                 await wsinfo.websocket.send_text(json.dumps(sendJson))
                 await self.group_broadcast(message.get("group_id"), message.get("message"), wsinfo.info.user.id)
+                
+            # 发送私聊信息
             elif(message.get("type") == "private_message"):
                 save_private_message(wsinfo.info.user, message.get("friend_id"), message.get("message"), session)
                 sendJson = {"type": "info", "message": "private message sent"}
                 await wsinfo.websocket.send_text(json.dumps(sendJson))
                 await self.private_broadcast(wsinfo.info.user.id, message.get("friend_id"), message.get("message"))
+            
+            # 发送Aichat信息
+            # 已移动到aichat.py
+            
+            elif(message.get("type") == "clear_aichat_message"):
+                clear_aichat_message(wsinfo.info.user, session)
+                sendJson = {"type": "aichat_messages", "aichat_messages": get_aichat_message(wsinfo.info.user, session), "message": "chat changed"}
+                await wsinfo.websocket.send_text(json.dumps(sendJson))
+                
+                
+            # 获取新chat的历史消息
             elif(message.get("type") == "change_chat"):
                 wsinfo.info.group_id = message.get("group_id")
                 wsinfo.info.friend_id = message.get("friend_id")
-                # 发送历史消息
                 if wsinfo.info.group_id:
+                    # 是群组
                     sendJson = {"type": "group_messages", "group_messages": get_message_by_groupid(wsinfo.info.user, wsinfo.info.group_id, session), "message": "chat changed"}
                 elif wsinfo.info.friend_id:
+                    # 是私聊
                     sendJson = {"type": "friends_messages", "friends_messages": get_message_by_userid(wsinfo.info.friend_id, wsinfo.info.user, session), "message": "chat changed"}
+                else:
+                    # 是Aichat
+                    sendJson = {"type": "aichat_messages", "aichat_messages": get_aichat_message(wsinfo.info.user, session), "message": "chat changed"}
                 await wsinfo.websocket.send_text(json.dumps(sendJson))
+                
+            # 没看懂前端想干啥
             else:
                 sendJson = {"type": "info", "message": "invalid message type"}
                 await wsinfo.websocket.send_text(json.dumps(sendJson))
@@ -114,3 +134,4 @@ async def websocket_endpoint(websocket: WebSocket, session: SessionDepend):
                 await manager.handle_message(session, wsinfo, data)
     except WebSocketDisconnect:
         manager.disconnect(wsinfo)
+

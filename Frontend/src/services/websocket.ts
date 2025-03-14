@@ -10,14 +10,13 @@ class WebSocketService {
     private constructor() {
         this.ws = new WebSocket(import.meta.env.VITE_API_URL + "/ws")
         this.ws.onopen = () => {
-            console.warn('WebSocket connected')
+            console.log('WebSocket connected')
             this.authorizeWebSocket(API.getToken())
         }
         this.ws.onmessage = (event) => {
-            console.warn('WebSocket message received: ', event.data)
-            showMessage.success(event.data)
+            // console.warn('WebSocket message received: ', event.data)
             const messageobj = JSON.parse(event.data)
-            console.warn("debug:", messageobj)
+            // console.warn("debug:", messageobj)
             this.wsMessage.value = messageobj
         }
         this.ws.onerror = (event) => {
@@ -52,7 +51,7 @@ class WebSocketService {
     }
 
     public sendJSON <T extends object>(data: T): void {
-        console.warn('Sending JSON data: ', data)
+        // console.warn('Sending JSON data: ', data)
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
         } else {

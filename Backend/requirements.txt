@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+sqlmodel
+dotenv
+passlib
+PyJWT
+openai
+websockets

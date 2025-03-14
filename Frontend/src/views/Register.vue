@@ -44,7 +44,6 @@ export default {
     },
     methods: {
         register() {
-            console.log('注册信息:', this.form)
             handleRegister(this.form.username, this.form.password)
         }
     }
