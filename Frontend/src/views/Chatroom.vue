@@ -191,7 +191,7 @@ const getChatList = async () => {
 const selectChat = (chat: ChatItem) => {
     selectedChat.value = chat
     messages.value = []
-    
+    scrollToBottom()
     ws.sendJSON({
         type: 'change_chat',
         friend_id: chat.type === 'friend' ? chat.id : 0,
@@ -236,6 +236,9 @@ const sendMessage = () => {
                     timestamp: Date.now(),
                     sender: 'me'
                 })
+                if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                    chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = newMessage.value
+                }
                 scrollToBottom()
                 newMessage.value = ''
             }
@@ -318,6 +321,9 @@ watch(ws.wsMessage, (message) => {
                 timestamp: Date.now(),
                 sender: 'other'
             })
+            if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = message["message"]
+            }
             if(isAtBottom.value) scrollToBottom()
         }
         else if (message.type === "group_messages" && "group_messages" in message && Array.isArray(message["group_messages"])) {
@@ -330,6 +336,9 @@ watch(ws.wsMessage, (message) => {
                     })
                 }
             })
+            if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = message["group_messages"][message["group_messages"].length - 1]["message"]
+            }
             scrollToBottom()
         }
         else if (message.type === "friends_messages" && "friends_messages" in message && Array.isArray(message["friends_messages"])) {
@@ -344,11 +353,14 @@ watch(ws.wsMessage, (message) => {
                     })
                 }
             })
+            if (chatList.value.find(chat => chat.id === selectedChat.value?.id) != undefined) {
+                chatList.value.find(chat => chat.id === selectedChat.value?.id)!.lastMessage = message["friends_messages"][message["friends_messages"].length - 1]["message"]
+            }
             scrollToBottom()
         }
         else if (message.type === "aichat_messages" && "aichat_messages" in message && Array.isArray(message["aichat_messages"]) && aichatMessages.value.length === 0) {
             aichatMessages.value.push({
-                content: "### 这是**Deepseek R1 671B模型**，从山大智能助手~~借~~来的api，支持上下文联想\n\n\n\n~~它本来还应该支持切换QwQ模型和开启联网查询，但我懒得写了~~",
+                content: "### 这是**Deepseek R1 671B模型 联网版**，从山大智能助手~~借~~来的api，支持上下文联想\n\n\n\n~~它本来还应该支持切换QwQ模型和V3模型，但我懒得写咯~~",
                 timestamp: Date.now(),
                 sender: 'other'
             })

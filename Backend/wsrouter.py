@@ -54,7 +54,6 @@ class ConnectionManager:
                 await connection.websocket.send_text(json.dumps(sendJson))
                 
     async def handle_message(self, session: SessionDepend, wsinfo: WsInfo, message: dict):
-        print("ws: ", message)
         try:
             # 发送群组信息
             if(message.get("type") == "group_message"):

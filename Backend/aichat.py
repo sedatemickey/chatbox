@@ -34,7 +34,7 @@ def chat_generator(aichat_message: AichatMessage, session: SessionDepend, user: 
         yield chunk
     save_aichat_message(user, received, "received", session)
 
-def chat(text, messages, model = "deepseek-resonser"):
+def chat(text, messages, model = "deepseek_reasoner_web"):
     print(os.environ['AICHAT_API_URL']+"/v1/")
     AichatMessage = [{"role": "user" if message["type"] == "sent" else "assistant", "content": message["message"]} for message in messages]
     AichatMessage.append({"role": "user", "content": text})
